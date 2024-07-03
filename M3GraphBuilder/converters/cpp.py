@@ -2,7 +2,7 @@ from copy import deepcopy
 import re
 import os
 import json
-from C3GraphBuilder.rascal_problem_loc_parser import parse_rascal_problem_location
+from M3GraphBuilder.rascal_problem_loc_parser import parse_rascal_problem_location
 
 
 class Cpp:

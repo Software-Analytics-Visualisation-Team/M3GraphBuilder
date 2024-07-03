@@ -1,8 +1,8 @@
 import os
 import json
 import argparse
-from C3GraphBuilder.lpg_validator import find_node_discrpenecies
-from C3GraphBuilder.converters import Cpp
+from M3GraphBuilder.lpg_validator import find_node_discrpenecies
+from M3GraphBuilder.converters import Cpp
 
 def get_model_file_name(file_path):
     if not os.path.exists(file_path):

@@ -1,18 +1,18 @@
-# C3GraphBuilder
+# M3GraphBuilder
 
 This is a python tool using a command line interface (CLI) which can be used to build a [labeled property graph (LPG) representation for software structure](https://github.com/rsatrioadi/phd/blob/main/representation.md) out of a [M3 model](https://www.rascal-mpl.org/docs/Packages/Clair/API/lang/cpp/M3/) - a model obtained by parsing C or C++ code, containing rich information about the source code.
 
-## Using C3GraphBuilder
+## Using M3GraphBuilder
 A graph can be built by running the following command:
 
 ```python
-python -m C3GraphBuilder -m_path "/my_path/m3_model.json"
+python -m M3GraphBuilder -m_path "/my_path/m3_model.json"
 ```
 
 The graph name and the location where it will be stored can be modified with additional command line parameters. For a list of the different parameters do:
 
 ```python
-python -m C3GraphBuilder --help
+python -m M3GraphBuilder --help
 ```
 
 ## Generating a M3 model from source code
