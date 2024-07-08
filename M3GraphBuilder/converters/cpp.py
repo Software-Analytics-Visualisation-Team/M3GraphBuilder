@@ -737,17 +737,18 @@ class Cpp:
     def export(self, name):
 
         print("[1/7] Adding files")
-        for file in self.get_files():
+        files = self.get_files()
+        for file in files:
             self.add_nodes("file", file)
 
-        print("[1/7] Successfully added files")
-        print("[2/7] Adding problems")
+        print(f"[1/7] Successfully added {len(files)} files to the graph.")
+        print("[2/7] Adding Rascal problems")
         # for primitve in self.primitives:
         #     self.add_nodes("Primitive", primitve)
         problems = self.get_problems()
         for problem in problems.items():
             self.add_nodes("problem", problem)
-        print("[2/7] Successfully added problems")
+        print(f"[2/7] Successfully added {len(problems)} Rascal problems to the graph.")
         
         print("[3/7] Adding functions")
         functions = self.get_functions()
@@ -761,7 +762,7 @@ class Cpp:
             #     self.add_edges("hasVariable", func)
             # self.add_edges("returnType", func)
             self.add_edges("contains", func)
-        print("[3/7] Successfully added functions")
+        print(f"[3/7] Successfully added {len(functions)} functions to the graph.")
 
         classes, problem_classes = self.get_classes()
 
@@ -771,12 +772,12 @@ class Cpp:
             if c[1]["extends"] is not None:
                 self.add_edges("specializes", c)
             self.add_edges("contains", c)
-        print("[4/7] Successfully added classes")
+        print(f"[4/7] Successfully added {len(classes)} classes to the graph.")
         
-        print("[5/7] Adding classes")
+        print("[5/7] Adding Rascal problem classes")
         for pc in problem_classes.items():
             self.add_nodes("problem", pc)
-        print("[5/7] Successfully added problem classes")
+        print(f"[5/7] Successfully added {len(problem_classes)} Rascal problem classes.")
 
         print("[6/7] Adding methods")
         methods = self.get_methods()
@@ -790,14 +791,14 @@ class Cpp:
             # if m[1]["variables"]:
             #     self.add_nodes("variable", m)
             #     self.add_edges("hasVariable", m)
-        print("[6/7] Successfully added methods")
+        print(f"[6/7] Successfully added {len(methods)} methods to the graph.")
 
         print("[7/7] Adding invokes")
         operations = deepcopy(methods)
         operations.update(functions)
         for invoke in self.get_invokes(operations):
             self.add_edges("invokes", invoke)
-        print("[7/7] Successfully added invokes")
+        print(f"[7/7] Successfully added {len(operations)} invokes to the graph.")
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))

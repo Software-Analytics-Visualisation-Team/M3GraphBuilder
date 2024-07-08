@@ -41,14 +41,11 @@ def main():
             graph_name = args.graph_name
         else:
             graph_name = get_model_file_name(model_path)
-            print(f"graph name:{graph_name}")
         
         if args.folder_path:
             graph_path = create_graph_path(args.folder_path, graph_name, False)
         else:
             graph_path = create_graph_path(model_path, graph_name, True)
-
-        print(f"graph path:{graph_path}")
 
         with open(model_path, "r") as model_json:
             parsed_json = json.load(model_json)
@@ -63,7 +60,7 @@ def main():
             )
 
             cpp_converter.export(graph_name)
-            print(f"Graph {graph_name} successfully built in {graph_path}")
+            print(f"[DONE] Graph {graph_name} successfully built in {graph_path}")
 
             if args.validate is True:
                 result = find_node_discrpenecies(graph_path)
