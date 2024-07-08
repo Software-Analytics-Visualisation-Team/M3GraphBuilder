@@ -64,7 +64,7 @@ def main():
 
             if args.validate is True:
                 print("Validating graph:")
-                print("[1/1] Checking for nonexistent edge sources and targets..")
+                print("[1/1] Checking for nonexistent edge sources and targets.")
                 missing_node_ids = find_node_discrpenecies(graph_path)
                 print(f"[1/1] Found {len(missing_node_ids)} nonexistent nodes with IDs:")
                 print(missing_node_ids)
