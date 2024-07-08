@@ -23,8 +23,9 @@ def find_node_discrpenecies(lpg_path):
             for nodeId in node_ids_in_edges:
                 if(nodeId not in node_ids):
                     missing_ids.append(nodeId)
+
+            missing_ids.remove(missing_ids[0]) # Remove empty set from list.
                 
-        
         return missing_ids
     except Exception as e:
         return f"Error: {str(e)}"

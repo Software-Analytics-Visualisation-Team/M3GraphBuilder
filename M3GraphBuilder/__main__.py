@@ -63,8 +63,11 @@ def main():
             print(f"[DONE] Graph {graph_name} successfully built in {graph_path}")
 
             if args.validate is True:
-                result = find_node_discrpenecies(graph_path)
-                print(f"Graph Validation: Missing Nodes with IDs - {result}")
+                print("Validating graph:")
+                print("[1/1] Checking for nonexistent edge sources and targets..")
+                missing_node_ids = find_node_discrpenecies(graph_path)
+                print(f"[1/1] Found {len(missing_node_ids)} nonexistent nodes with IDs:")
+                print(missing_node_ids)
     else:
         print("Error: Missing value: --model_path")
         
