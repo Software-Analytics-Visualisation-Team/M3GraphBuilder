@@ -359,16 +359,16 @@ class Cpp:
             files.append(f[0])
         files = list(dict.fromkeys(files))
         for f in files:
-            files[files.index(f)] = re.sub("\/.+\/", "", f)
+            files[files.index(f)] = re.sub("\\/.+\\/", "", f)
         return files
 
     def get_function_location(self, function):
         data = self.parsed["functionDefinitions"]
         location = {}
         for element in data:
-            if re.match("cpp\+function:", element[0]) and function in element[0]:
-                location["file"], location["position"] = re.split("\(", element[1])
-                location["file"] = re.sub("\|file:.+/", "", location.get("file"))[:-1]
+            if re.match("cpp\\+function:", element[0]) and function in element[0]:
+                location["file"], location["position"] = re.split("\\(", element[1])
+                location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
                 location["position"] = "(" + location["position"]
                 break
 
@@ -376,9 +376,9 @@ class Cpp:
         #     data = self.parsed["declarations"]
 
         #     for element in data:
-        #         if re.match("cpp\+function:", element[0]) and function in element[0]:
-        #             location["file"], location["position"] = re.split("\(", element[1])
-        #             location["file"] = re.sub("\|file:.+/", "", location.get("file"))[:-1]
+        #         if re.match("cpp\\+function:", element[0]) and function in element[0]:
+        #             location["file"], location["position"] = re.split("\\(", element[1])
+        #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
         #             location["position"] = "(" + location["position"]
         #             break
 
@@ -390,10 +390,10 @@ class Cpp:
 
         for element in data:
             if re.match(
-                "cpp\+method:\/\/\/{}\/{}".format(className, method), element[0]
+                "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
             ):
-                location["file"], location["position"] = re.split("\(", element[1])
-                location["file"] = re.sub("\|file:.+/", "", location.get("file"))[:-1]
+                location["file"], location["position"] = re.split("\\(", element[1])
+                location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
                 location["position"] = "(" + location["position"]
                 break
 
@@ -402,10 +402,10 @@ class Cpp:
 
         #     for element in data:
         #         if re.match(
-        #             "cpp\+method:\/\/\/{}\/{}".format(className, method), element[0]
+        #             "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
         #         ):
-        #             location["file"], location["position"] = re.split("\(", element[1])
-        #             location["file"] = re.sub("\|file:.+/", "", location.get("file"))[:-1]
+        #             location["file"], location["position"] = re.split("\\(", element[1])
+        #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
         #             location["position"] = "(" + location["position"]
         #             break
 
@@ -430,11 +430,11 @@ class Cpp:
         functions = {}
         data = self.parsed["declaredType"]
         for element in data:
-            if re.match("cpp\+function:", element[0]):
+            if re.match("cpp\\+function:", element[0]):
                 parameters = []
                 function = dict()
                 function["functionName"] = re.split(
-                    "\(", re.sub("cpp\+function:.+\/", "", element[0])
+                    "\\(", re.sub("cpp\\+function:.+\\/", "", element[0])
                 )[0]
                 function["location"] = self.get_function_location(
                     function["functionName"]
@@ -468,11 +468,11 @@ class Cpp:
     def get_variables(self, operator):
         variables = []
         data = self.parsed["declaredType"]
-        operator_name = "cpp+variable:" + re.split("cpp\+.+:", operator)[1]
+        operator_name = "cpp+variable:" + re.split("cpp\\+.+:", operator)[1]
         for element in data:
-            if re.match("cpp\+variable:", element[0]) and operator_name in element[0]:
+            if re.match("cpp\\+variable:", element[0]) and operator_name in element[0]:
                 variable = {}
-                variable["name"] = re.sub("cpp\+variable:.+/", "", element[0])
+                variable["name"] = re.sub("cpp\\+variable:.+/", "", element[0])
                 variable["type"] = self.get_type(
                     element[1], self.get_type_field(element[1])
                 )
@@ -485,17 +485,17 @@ class Cpp:
         for element in data:
             parameters = []
 
-            if re.match("cpp\+method", element[0]):
+            if re.match("cpp\\+method", element[0]):
                 method = dict()
                 # Addition
                 elementParts = re.split(
-                    "\/", re.sub("cpp\+method:\/\/\/", "", element[0])
+                    "\\/", re.sub("cpp\\+method:\\/\\/\\/", "", element[0])
                 )
                 # method["class"] = "/".join(elementParts[:-1])
                 method["class"] = elementParts[len(elementParts) - 2]
 
                 method["methodName"] = re.split(
-                    "\(", elementParts[len(elementParts) - 1]
+                    "\\(", elementParts[len(elementParts) - 1]
                 )[0]
                 # End Addition
 
@@ -554,7 +554,7 @@ class Cpp:
 
     # def get_type_deprecated(self, element, field1, field2):
     #     if field2 == "decl":
-    #         return re.sub("cpp\+class:\/+", "", element[1][field1][field2])
+    #         return re.sub("cpp\\+class:\\/+", "", element[1][field1][field2])
     #     if field2 == "type":
     #         if "decl" in element[1][field1][field2].keys():
     #             if (
@@ -564,7 +564,7 @@ class Cpp:
     #                 return "string"
     #             else:
     #                 return re.sub(
-    #                     "cpp\+class:\/+",
+    #                     "cpp\\+class:\\/+",
     #                     "",
     #                     element[1][field1][field2]["decl"],
     #                 )
@@ -577,7 +577,7 @@ class Cpp:
     #                     ):
     #                         return "string"
     #                     return re.sub(
-    #                         "cpp\+class:\/+",
+    #                         "cpp\\+class:\\/+",
     #                         "",
     #                         element[1][field1][field2]["type"]["type"]["decl"],
     #                     )
@@ -587,7 +587,7 @@ class Cpp:
     #                 ):
     #                     return "string"
     #                 return re.sub(
-    #                     "cpp\+class:\/+", "", element[1][field1][field2]["type"]["decl"]
+    #                     "cpp\\+class:\\/+", "", element[1][field1][field2]["type"]["decl"]
     #                 )
     #     if field2 == "baseType":
     #         return element[1][field1][field2]
@@ -599,17 +599,17 @@ class Cpp:
             if field == "baseType":
                 return element[field]
             if field == "decl":
-                if re.match("cpp\+classTemplate", element[field]):
+                if re.match("cpp\\+classTemplate", element[field]):
                     return "string"
                 else:
-                    elementParts = re.split("\/", re.sub("cpp\+class:\/\/\/", "", element[field]))
+                    elementParts = re.split("\\/", re.sub("cpp\\+class:\\/\\/\\/", "", element[field]))
                     return elementParts[len(elementParts) - 1]
             if field == "msg":
                 return None
 
     def get_parameter_type(self, element, field):
         if field == "decl":
-            return re.sub("cpp\+class:\/+", "", element[field])
+            return re.sub("cpp\\+class:\\/+", "", element[field])
         if field == "type":
             if "decl" in element[field].keys():
                 if (
@@ -618,7 +618,7 @@ class Cpp:
                 ):
                     return "string"
                 else:
-                    return re.sub("cpp\+class:\/+", "", element[field]["decl"])
+                    return re.sub("cpp\\+class:\\/+", "", element[field]["decl"])
             if "baseType" in element[field].keys():
                 return element[field]["baseType"]
             if "modifiers" in element[field].keys():
@@ -639,15 +639,15 @@ class Cpp:
 
         for element in data:
             if (
-                re.match("cpp\+parameter", element[0])
+                re.match("cpp\\+parameter", element[0])
                 and find in element[0]
                 and location in element[1]
-                and re.match("\|file:\/+.+.\|", element[1])
+                and re.match("\\|file:\\/+.+.\\|", element[1])
             ):
                 parameter = {}
-                parameter["name"] = re.sub("cpp\+parameter:\/+.+\/", "", element[0])
+                parameter["name"] = re.sub("cpp\\+parameter:\\/+.+\\/", "", element[0])
                 parameter["location"] = int(
-                    re.split(",", re.sub("\|file:\/+.+\|\(", "", element[1]))[0]
+                    re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", element[1]))[0]
                 )
                 parameters.append(parameter)
         parameters = sorted(parameters, key=lambda d: d["location"])
@@ -657,9 +657,9 @@ class Cpp:
         data = self.parsed["functionDefinitions"]
         location = {}
         for element in data:
-            if re.match("cpp\+constructor:\/+\/" + c, element[0]) and c in element[0]:
-                location["file"], location["position"] = re.split("\(", element[1])
-                location["file"] = re.sub("\|file:.+/", "", location.get("file"))[:-1]
+            if re.match("cpp\\+constructor:\\/+\\/" + c, element[0]) and c in element[0]:
+                location["file"], location["position"] = re.split("\\(", element[1])
+                location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
                 location["position"] = "(" + location["position"]
                 break
         return location
@@ -669,15 +669,15 @@ class Cpp:
         classes = {}
         problem_classes = {}
         for element in data:
-            if re.match("cpp\+class", element[0]):
+            if re.match("cpp\\+class", element[0]):
                 c = {}                        
-                if re.match("cpp\+constructor", element[1]):
+                if re.match("cpp\\+constructor", element[1]):
                     c["className"] = re.split(
-                        "\(", re.sub("cpp\+constructor:\/+.+\/", "", element[1])
+                        "\\(", re.sub("cpp\\+constructor:\\/+.+\\/", "", element[1])
                     )[0]
                 else:
                     c["className"] = re.split(
-                        "\(", re.sub("cpp\+class:\/+.+\/", "", element[0])
+                        "\\(", re.sub("cpp\\+class:\\/+.+\\/", "", element[0])
                     )[0]
 
                 extends = self.parsed["extends"]
@@ -697,7 +697,7 @@ class Cpp:
                             parsed_info = parse_rascal_problem_location(el[0])
                             c["extends"] = parsed_info["object"]
                         else:
-                            parsed_info = re.split("/", re.sub("cpp\+class:\/+", "", el[0]))
+                            parsed_info = re.split("/", re.sub("cpp\\+class:\\/+", "", el[0]))
                             c["extends"] = parsed_info[len(parsed_info) - 1]
                         break
                 c["location"] = self.get_classes_location(c["className"])
@@ -710,7 +710,7 @@ class Cpp:
         invokes = []
         for operation in operations.items():
             for element in data:
-                if re.match(".+\.", operation[0]):
+                if re.match(".+\\.", operation[0]):
                     source = operation[0].replace(".", "/")
                 else:
                     source = operation[0]
@@ -719,11 +719,11 @@ class Cpp:
                         invoke = {}
                         invoke["source"] = operation[0]
                         try:
-                            target = re.sub("cpp\+function:\/+.+\/", "", element[1])
-                            if re.match("cpp\+", target):
-                                target = re.sub("cpp\+method:\/+", "", element[1])
+                            target = re.sub("cpp\\+function:\\/+.+\\/", "", element[1])
+                            if re.match("cpp\\+", target):
+                                target = re.sub("cpp\\+method:\\/+", "", element[1])
                                 target = target.replace("/", ".")
-                            target = re.split("\(", target)[0]
+                            target = re.split("\\(", target)[0]
 
                             if target in operations.keys():
                                 invoke["target"] = target
