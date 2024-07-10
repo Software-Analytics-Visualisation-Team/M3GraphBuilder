@@ -1,6 +1,5 @@
 from copy import deepcopy
 import re
-import os
 import json
 from M3GraphBuilder.rascal_problem_loc_parser import parse_rascal_problem_location
 
@@ -411,25 +410,33 @@ class Cpp:
 
         return location
     
-    def get_problems(self):
-        problems = {}
-        data = self.parsed["declaredType"]
-        for element in data:
-            if re.match("problem:", element[0]):
-                problem = dict()
-                parsed_info = parse_rascal_problem_location(element[0])
-                if parsed_info['object'] != "":
-                    problem["id"] = parsed_info['object']
-                else:
-                    problem["id"] = parsed_info['id']
-                problem["message"] = parsed_info['message']
-                problems[problem["id"]] = problem
-        return problems
+    def is_rascal_problem(self, content):
+           if re.match("problem:", content) != None:
+               return True
+           else:
+               return False
+
+
+    def parse_problem(self, problem_node):
+        problem = dict()
+        parsed_info = parse_rascal_problem_location(problem_node)
+        if parsed_info['object'] is not None:
+            problem["id"] = parsed_info['object']
+        else:
+            problem["id"] = parsed_info['id']
+
+        problem["message"] = parsed_info['message']
+
+        return problem
 
     def get_functions(self):
         functions = {}
+        problem_declarations = {}
         data = self.parsed["declaredType"]
         for element in data:
+            if self.is_rascal_problem(element[0]):
+                problem = self.parse_problem(element[0])
+                problem_declarations[problem["id"]] = problem
             if re.match("cpp\\+function:", element[0]):
                 parameters = []
                 function = dict()
@@ -463,7 +470,7 @@ class Cpp:
                 function["parameters"] = parameters
                 function["variables"] = self.get_variables(element[0])
                 functions[function["functionName"]] = function
-        return functions
+        return functions,problem_declarations
 
     def get_variables(self, operator):
         variables = []
@@ -669,6 +676,10 @@ class Cpp:
         classes = {}
         problem_classes = {}
         for element in data:
+            if self.is_rascal_problem(element[0]):
+                problem = self.parse_problem(element[0])
+                problem_classes[problem["id"]] = problem
+
             if re.match("cpp\\+class", element[0]):
                 c = {}                        
                 if re.match("cpp\\+constructor", element[1]):
@@ -684,18 +695,15 @@ class Cpp:
                 c["extends"] = None
 
                 for el in extends:
-                    if re.match("problem:", el[0]):
-                        problem = dict()
-                        parsed_info = parse_rascal_problem_location(el[0])
-                        problem["id"] = parsed_info['object']
-                        problem["message"] = parsed_info['message']
+                    if self.is_rascal_problem(el[0]):
+                        problem = self.parse_problem(el[0])
                         problem_classes[problem["id"]] = problem
 
                     if el[1] == element[0]:
 
-                        if re.match("problem:", el[0]):
-                            parsed_info = parse_rascal_problem_location(el[0])
-                            c["extends"] = parsed_info["object"]
+                        if self.is_rascal_problem(el[0]):
+                            problem = self.parse_problem(el[0])
+                            c["extends"] = problem["id"]
                         else:
                             parsed_info = re.split("/", re.sub("cpp\\+class:\\/+", "", el[0]))
                             c["extends"] = parsed_info[len(parsed_info) - 1]
@@ -736,22 +744,21 @@ class Cpp:
 
     def export(self, name):
 
-        print("[1/7] Adding files")
+        print("[1/6] Adding files")
         files = self.get_files()
         for file in files:
             self.add_nodes("file", file)
 
-        print(f"[1/7] Successfully added {len(files)} files to the graph.")
-        print("[2/7] Adding Rascal problems")
+        print(f"[1/6] Successfully added {len(files)} files to the graph.")
+
+        print("[2/6] Adding declarations")
+        functions, problem_declarations = self.get_functions()
         # for primitve in self.primitives:
         #     self.add_nodes("Primitive", primitve)
-        problems = self.get_problems()
-        for problem in problems.items():
+        for problem in problem_declarations.items():
             self.add_nodes("problem", problem)
-        print(f"[2/7] Successfully added {len(problems)} Rascal problems to the graph.")
+        print(f"[2/6] Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
         
-        print("[3/7] Adding functions")
-        functions = self.get_functions()
         for func in functions.items():
             self.add_nodes("function", func)
             # if func[1]["parameters"]:
@@ -762,24 +769,24 @@ class Cpp:
             #     self.add_edges("hasVariable", func)
             # self.add_edges("returnType", func)
             self.add_edges("contains", func)
-        print(f"[3/7] Successfully added {len(functions)} functions to the graph.")
+        print(f"[2/6] Successfully added {len(functions)} functions to the graph.")
 
         classes, problem_classes = self.get_classes()
 
-        print("[4/7] Adding classes")
+        print("[3/6] Adding classes")
         for c in classes.items():
             self.add_nodes("class", c)
             if c[1]["extends"] is not None:
                 self.add_edges("specializes", c)
             self.add_edges("contains", c)
-        print(f"[4/7] Successfully added {len(classes)} classes to the graph.")
+        print(f"[3/6] Successfully added {len(classes)} classes to the graph.")
         
-        print("[5/7] Adding Rascal problem classes")
+        print("[4/6] Adding Rascal problem classes")
         for pc in problem_classes.items():
             self.add_nodes("problem", pc)
-        print(f"[5/7] Successfully added {len(problem_classes)} Rascal problem classes.")
+        print(f"[4/6] Successfully added {len(problem_classes)} Rascal problem classes to the graph.")
 
-        print("[6/7] Adding methods")
+        print("[5/6] Adding methods")
         methods = self.get_methods()
         for m in methods.items():
             self.add_nodes("method", m)
@@ -791,14 +798,14 @@ class Cpp:
             # if m[1]["variables"]:
             #     self.add_nodes("variable", m)
             #     self.add_edges("hasVariable", m)
-        print(f"[6/7] Successfully added {len(methods)} methods to the graph.")
+        print(f"[5/6] Successfully added {len(methods)} methods to the graph.")
 
-        print("[7/7] Adding invokes")
+        print("[6/6] Adding invokes")
         operations = deepcopy(methods)
         operations.update(functions)
         for invoke in self.get_invokes(operations):
             self.add_edges("invokes", invoke)
-        print(f"[7/7] Successfully added {len(operations)} invokes to the graph.")
+        print(f"[6/6] Successfully added {len(operations)} invokes to the graph.")
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))
