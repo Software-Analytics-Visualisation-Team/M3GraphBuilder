@@ -559,46 +559,6 @@ class Cpp:
         except:
             return None
 
-    # def get_type_deprecated(self, element, field1, field2):
-    #     if field2 == "decl":
-    #         return re.sub("cpp\\+class:\\/+", "", element[1][field1][field2])
-    #     if field2 == "type":
-    #         if "decl" in element[1][field1][field2].keys():
-    #             if (
-    #                 element[1][field1][field2]["decl"]
-    #                 == "cpp+classTemplate:///std/__cxx11/basic_string"
-    #             ):
-    #                 return "string"
-    #             else:
-    #                 return re.sub(
-    #                     "cpp\\+class:\\/+",
-    #                     "",
-    #                     element[1][field1][field2]["decl"],
-    #                 )
-    #         if "type" in element[1][field1][field2].keys():
-    #             if "decl" in element[1][field1][field2]["type"].keys():
-    #                 if "type" in element[1][field1][field2]["type"].keys():
-    #                     if (
-    #                         element[1][field1][field2]["type"]["type"]["decl"]
-    #                         == "cpp+classTemplate:///std/__cxx11/basic_string"
-    #                     ):
-    #                         return "string"
-    #                     return re.sub(
-    #                         "cpp\\+class:\\/+",
-    #                         "",
-    #                         element[1][field1][field2]["type"]["type"]["decl"],
-    #                     )
-    #                 if (
-    #                     element[1][field1][field2]["type"]["decl"]
-    #                     == "cpp+classTemplate:///std/__cxx11/basic_string"
-    #                 ):
-    #                     return "string"
-    #                 return re.sub(
-    #                     "cpp\\+class:\\/+", "", element[1][field1][field2]["type"]["decl"]
-    #                 )
-    #     if field2 == "baseType":
-    #         return element[1][field1][field2]
-
     def get_type(self, element, field):
         if self.get_type_field(element.get(field)) is not None:
             return self.get_type(element[field], self.get_type_field(element[field]))
