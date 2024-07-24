@@ -1,7 +1,8 @@
 from copy import deepcopy
 import re
 import json
-from M3GraphBuilder.rascal_problem_loc_parser import parse_rascal_problem_location
+import M3GraphBuilder.converters.constants as constants
+import M3GraphBuilder.converters.m3_utils as m3_utils
 
 
 class Cpp:
@@ -31,7 +32,7 @@ class Cpp:
                     }
                 )
                 try:
-                    if(len(content[1]["location"]) != 0):
+                    if len(content[1]["location"]) != 0:
                         edge_id = (
                             hash(content[1]["class"])
                             + hash(content[0])
@@ -55,7 +56,7 @@ class Cpp:
                         if item["data"]["target"] == content[1]["class"]
                         and "contains" in item["data"]["labels"]
                     )
-                    if(source is not None):
+                    if source is not None:
                         edge_id = (
                             hash(content[1]["class"])
                             + hash(content[0])
@@ -89,7 +90,7 @@ class Cpp:
                             }
                         )
 
-                        if(len(content[1]["location"]) != 0):
+                        if len(content[1]["location"]) != 0:
                             edge_id = (
                                 hash(parameter["name"])
                                 + hash(content[0])
@@ -107,7 +108,7 @@ class Cpp:
                                 }
                             )
             case "returnType":
-                if(content[0] is not None and content[1]["returnType"] is not None):        
+                if content[0] is not None and content[1]["returnType"] is not None:
                     edge_id = hash(content[0]) + hash(content[1]["returnType"])
                     self.lpg["elements"]["edges"].append(
                         {
@@ -148,7 +149,7 @@ class Cpp:
                                 }
                             }
                         )
-                        if(len(content[1]["location"]) != 0 and content[0] is not None):
+                        if len(content[1]["location"]) != 0 and content[0] is not None:
                             edge_id = (
                                 hash(variable["name"])
                                 + hash(content[0])
@@ -180,23 +181,47 @@ class Cpp:
                 )
             case "contains":
                 try:
-                    if content[1]["location"].get("file") is None or len(content[1]["location"]) == 0:
-                        pass
-                    else:
-                        edge_id = hash(content[0]) + hash(content[1]["location"].get("file"))
+                    if content[1].get("fragmentType") is constants.M3_CPP_TRANSLATION_UNIT_TYPE or content[1].get("fragmentType") is constants.M3_CPP_NAMESPACE_TYPE:
+                        children_namespaces = content[1].get("contains")
+                        for child_namespace in children_namespaces:
+                            edge_id = hash(content[0]) + hash(
+                            child_namespace
+                        )
                         self.lpg["elements"]["edges"].append(
                             {
                                 "data": {
                                     "id": edge_id,
-                                    "source": content[1]["location"].get("file"),
+                                    "source": content[1].get("simpleName"),
                                     "properties": {"weight": 1},
-                                    "target": content[0],
+                                    "target": child_namespace,
                                     "labels": [kind],
                                 }
                             }
                         )
-                except:
-                    print(content[1])
+
+                    # elif (
+                    #     content[1]["location"].get("file") is None
+                    #     or len(content[1]["location"]) == 0
+                    # ):
+                    #     pass
+                    # else:
+                    #     edge_id = hash(content[0]) + hash(
+                    #         content[1]["location"].get("file")
+                    #     )
+                    #     self.lpg["elements"]["edges"].append(
+                    #         {
+                    #             "data": {
+                    #                 "id": edge_id,
+                    #                 "source": content[1]["location"].get("file"),
+                    #                 "properties": {"weight": 1},
+                    #                 "target": content[0],
+                    #                 "labels": [kind],
+                    #             }
+                    #         }
+                    #     )
+                except Exception as e:
+                    print("Problem adding 'contains' relationship for ", content)
+                    print("Exception message:", e)
             case "type":
                 content = list(zip(content.keys(), content.values()))[0]
                 id = hash(content[0]) - hash(content[1]["name"])
@@ -221,11 +246,28 @@ class Cpp:
                     {
                         "data": {
                             "id": content[1]["id"],
-                            "properties": {"simpleName":content[1]["id"], "description": content[1]["message"], "kind": kind},
+                            "properties": {
+                                "simpleName": content[1]["id"],
+                                "description": content[1]["message"],
+                                "kind": kind,
+                            },
                             "labels": ["Problem"],
                         }
                     }
-                ) 
+                )
+            case "translation_unit":
+                self.lpg["elements"]["nodes"].append(
+                    {
+                        "data": {
+                            "id": content[1].get("simpleName"),
+                            "properties": {"simpleName": content[1].get("simpleName"),
+                            "description": content[1].get("loc"),
+                            "kind": kind,
+                            },
+                            "labels": ["Container"],
+                        }       
+                    }
+                )
             case "file":
                 self.lpg["elements"]["nodes"].append(
                     {
@@ -282,7 +324,7 @@ class Cpp:
                     for issue in self.issues:
                         if issue["target"]["script"] == content[0]:
                             vulnerabilities.append(issue)
-                if(content[0] != "" and content[1] != ""):
+                if content[0] != "" and content[1] != "":
                     self.lpg["elements"]["nodes"].append(
                         {
                             "data": {
@@ -299,22 +341,23 @@ class Cpp:
                             }
                         }
                     )
-            case "class":
-                vulnerabilities = []
-                if self.issues is not None:
-                    for issue in self.issues:
-                        if issue["target"]["script"] == content[0]:
-                            vulnerabilities.append(issue)
-                
-                if(content[0] != "" and content[1] != ""):
+            case "class" | "namespace" | "template" | "template_type" | "specialization" | "partial_specialization":
+                # print(content)
+                # vulnerabilities = []
+                # if self.issues is not None:
+                #     for issue in self.issues:
+                #         if issue["target"]["script"] == content[0]:
+                #             vulnerabilities.append(issue)
+                try:
                     self.lpg["elements"]["nodes"].append(
                         {
                             "data": {
-                                "id": content[0],
+                                "id": content[1].get("simpleName"),
                                 "properties": {
-                                    "simpleName": content[1]["className"],
+                                    "simpleName": content[1].get("simpleName"),
                                     "kind": kind,
-                                    "vulnerabilities": vulnerabilities,
+                                    #"vulnerabilities": vulnerabilities,
+                                    "description": content[1].get("loc")
                                 },
                                 "labels": [
                                     "Structure",
@@ -323,6 +366,9 @@ class Cpp:
                             }
                         }
                     )
+                except Exception as e:
+                    print(f"Problem adding {kind} node relationship for ", content)
+                    print(e)
             case "Primitive":
                 self.lpg["elements"]["nodes"].append(
                     {
@@ -361,73 +407,58 @@ class Cpp:
             files[files.index(f)] = re.sub("\\/.+\\/", "", f)
         return files
 
-    def get_function_location(self, function):
-        data = self.parsed["functionDefinitions"]
-        location = {}
-        for element in data:
-            if re.match("cpp\\+function:", element[0]) and function in element[0]:
-                location["file"], location["position"] = re.split("\\(", element[1])
-                location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-                location["position"] = "(" + location["position"]
-                break
+    #####
+    # def get_function_location(self, function):
+    #     data = self.parsed["functionDefinitions"]
+    #     location = {}
+    #     for element in data:
+    #         if re.match("cpp\\+function:", element[0]) and function in element[0]:
+    #             location["file"], location["position"] = re.split("\\(", element[1])
+    #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
+    #             location["position"] = "(" + location["position"]
+    #             break
 
-        # if len(location) == 0:
-        #     data = self.parsed["declarations"]
+    #     # if len(location) == 0:
+    #     #     data = self.parsed["declarations"]
 
-        #     for element in data:
-        #         if re.match("cpp\\+function:", element[0]) and function in element[0]:
-        #             location["file"], location["position"] = re.split("\\(", element[1])
-        #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-        #             location["position"] = "(" + location["position"]
-        #             break
+    #     #     for element in data:
+    #     #         if re.match("cpp\\+function:", element[0]) and function in element[0]:
+    #     #             location["file"], location["position"] = re.split("\\(", element[1])
+    #     #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
+    #     #             location["position"] = "(" + location["position"]
+    #     #             break
 
-        return location
+    #     return location
+    #####
 
-    def get_method_location(self, className, method):
-        data = self.parsed["functionDefinitions"]
-        location = {}
+    #####
+    # def get_method_location(self, className, method):
+    #     data = self.parsed["functionDefinitions"]
+    #     location = {}
 
-        for element in data:
-            if re.match(
-                "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
-            ):
-                location["file"], location["position"] = re.split("\\(", element[1])
-                location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-                location["position"] = "(" + location["position"]
-                break
+    #     for element in data:
+    #         if re.match(
+    #             "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
+    #         ):
+    #             location["file"], location["position"] = re.split("\\(", element[1])
+    #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
+    #             location["position"] = "(" + location["position"]
+    #             break
 
-        # if location is {}:
-        #     data = self.parsed["declarations"]
+    #     # if location is {}:
+    #     #     data = self.parsed["declarations"]
 
-        #     for element in data:
-        #         if re.match(
-        #             "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
-        #         ):
-        #             location["file"], location["position"] = re.split("\\(", element[1])
-        #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-        #             location["position"] = "(" + location["position"]
-        #             break
+    #     #     for element in data:
+    #     #         if re.match(
+    #     #             "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
+    #     #         ):
+    #     #             location["file"], location["position"] = re.split("\\(", element[1])
+    #     #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
+    #     #             location["position"] = "(" + location["position"]
+    #     #             break
 
-        return location
-    
-    def is_rascal_problem(self, content):
-           if re.match("problem:", content) != None:
-               return True
-           else:
-               return False
-
-
-    def parse_problem(self, problem_node):
-        problem = dict()
-        parsed_info = parse_rascal_problem_location(problem_node)
-        if parsed_info['object'] is not None:
-            problem["id"] = parsed_info['object']
-        else:
-            problem["id"] = parsed_info['id']
-
-        problem["message"] = parsed_info['message']
-
-        return problem
+    #     return location
+    #####
 
     def get_functions(self):
         functions = {}
@@ -443,9 +474,11 @@ class Cpp:
                 function["functionName"] = re.split(
                     "\\(", re.sub("cpp\\+function:.+\\/", "", element[0])
                 )[0]
-                function["location"] = self.get_function_location(
-                    function["functionName"]
-                )
+                #####
+                # function["location"] = self.get_function_location(
+                #     function["functionName"]
+                # )
+                #####
                 returnField = self.get_type_field(element[1]["returnType"])
                 function["returnType"] = self.get_type(
                     element[1]["returnType"], returnField
@@ -470,7 +503,7 @@ class Cpp:
                 function["parameters"] = parameters
                 function["variables"] = self.get_variables(element[0])
                 functions[function["functionName"]] = function
-        return functions,problem_declarations
+        return functions, problem_declarations
 
     def get_variables(self, operator):
         variables = []
@@ -499,16 +532,17 @@ class Cpp:
                     "\\/", re.sub("cpp\\+method:\\/\\/\\/", "", element[0])
                 )
                 # method["class"] = "/".join(elementParts[:-1])
-                method["class"] = elementParts[len(elementParts) - 2]
+                # method["class"] = elementParts[len(elementParts) - 2]
 
                 method["methodName"] = re.split(
                     "\\(", elementParts[len(elementParts) - 1]
                 )[0]
                 # End Addition
-
-                method["location"] = self.get_method_location(
-                    method["class"], method["methodName"]
-                )
+                # #####
+                # method["location"] = self.get_method_location(
+                #     method["class"], method["methodName"]
+                # )
+                #####
 
                 method["returnType"] = self.get_type(
                     element[1]["returnType"],
@@ -516,29 +550,29 @@ class Cpp:
                 )
 
                 # Addition of second if statement
-                if element[1]["parameterTypes"]:
-                    if "file" in method["location"].keys():
-                        parameters = self.get_parameters(
-                            method["methodName"],
-                            method["location"].get("file"),
-                            method["class"],
-                        )
-                    else:
-                        parameters = self.get_parameters(
-                            method["methodName"], "none", method["class"]
-                        )
+                # if element[1]["parameterTypes"]:
+                #     if "file" in method["location"].keys():
+                #         parameters = self.get_parameters(
+                #             method["methodName"],
+                #             method["location"].get("file"),
+                #             method["class"],
+                #         )
+                #     else:
+                #         parameters = self.get_parameters(
+                #             method["methodName"], "none", method["class"]
+                #         )
 
-                    i = 0
-                    # Addition
-                    if len(parameters) != 0:
-                        for parameter in element[1]["parameterTypes"]:
-                            if i < len(parameters):
-                                parameters[i]["type"] = self.get_parameter_type(
-                                    parameter, self.get_type_field(parameter)
-                                )
-                                i += 1
+                #     i = 0
+                #     # Addition
+                #     if len(parameters) != 0:
+                #         for parameter in element[1]["parameterTypes"]:
+                #             if i < len(parameters):
+                #                 parameters[i]["type"] = self.get_parameter_type(
+                #                     parameter, self.get_type_field(parameter)
+                #                 )
+                #                 i += 1
 
-                method["parameters"] = parameters
+                method["parameters"] = {}  # TODO: Attach parameters
                 method["variables"] = self.get_variables(element[0])
                 id = method["class"] + "." + method["methodName"]
                 methods[id] = method
@@ -569,7 +603,9 @@ class Cpp:
                 if re.match("cpp\\+classTemplate", element[field]):
                     return "string"
                 else:
-                    elementParts = re.split("\\/", re.sub("cpp\\+class:\\/\\/\\/", "", element[field]))
+                    elementParts = re.split(
+                        "\\/", re.sub("cpp\\+class:\\/\\/\\/", "", element[field])
+                    )
                     return elementParts[len(elementParts) - 1]
             if field == "msg":
                 return None
@@ -620,58 +656,62 @@ class Cpp:
         parameters = sorted(parameters, key=lambda d: d["location"])
         return parameters
 
-    def get_classes_location(self, c):
-        data = self.parsed["functionDefinitions"]
-        location = {}
-        for element in data:
-            if re.match("cpp\\+constructor:\\/+\\/" + c, element[0]) and c in element[0]:
-                location["file"], location["position"] = re.split("\\(", element[1])
-                location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-                location["position"] = "(" + location["position"]
-                break
-        return location
+    ####
+    # def get_classes_location(self, c):
+    #     data = self.parsed["functionDefinitions"]
+    #     location = {}
+    #     for element in data:
+    #         if re.match("cpp\\+constructor:\\/+\\/" + c, element[0]) and c in element[0]:
+    #             location["file"], location["position"] = re.split("\\(", element[1])
+    #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
+    #             location["position"] = "(" + location["position"]
+    #             break
+    #     return location
+    #####
 
-    def get_classes(self):
-        data = self.parsed["containment"]
-        classes = {}
-        problem_classes = {}
-        for element in data:
-            if self.is_rascal_problem(element[0]):
-                problem = self.parse_problem(element[0])
-                problem_classes[problem["id"]] = problem
+    #####
+    # def get_classes(self):
+    #     data = self.parsed["containment"]
+    #     classes = {}
+    #     problem_classes = {}
+    #     for element in data:
+    #         if self.is_rascal_problem(element[0]):
+    #             problem = self.parse_problem(element[0])
+    #             problem_classes[problem["id"]] = problem
 
-            if re.match("cpp\\+class", element[0]):
-                c = {}                        
-                if re.match("cpp\\+constructor", element[1]):
-                    c["className"] = re.split(
-                        "\\(", re.sub("cpp\\+constructor:\\/+.+\\/", "", element[1])
-                    )[0]
-                else:
-                    c["className"] = re.split(
-                        "\\(", re.sub("cpp\\+class:\\/+.+\\/", "", element[0])
-                    )[0]
+    #         if re.match("cpp\\+class", element[0]):
+    #             c = {}
+    #             if re.match("cpp\\+constructor", element[1]):
+    #                 c["className"] = re.split(
+    #                     "\\(", re.sub("cpp\\+constructor:\\/+.+\\/", "", element[1])
+    #                 )[0]
+    #             else:
+    #                 c["className"] = re.split(
+    #                     "\\(", re.sub("cpp\\+class:\\/+.+\\/", "", element[0])
+    #                 )[0]
 
-                extends = self.parsed["extends"]
-                c["extends"] = None
+    #             extends = self.parsed["extends"]
+    #             c["extends"] = None
 
-                for el in extends:
-                    if self.is_rascal_problem(el[0]):
-                        problem = self.parse_problem(el[0])
-                        problem_classes[problem["id"]] = problem
+    #             for el in extends:
+    #                 if self.is_rascal_problem(el[0]):
+    #                     problem = self.parse_problem(el[0])
+    #                     problem_classes[problem["id"]] = problem
 
-                    if el[1] == element[0]:
+    #                 if el[1] == element[0]:
 
-                        if self.is_rascal_problem(el[0]):
-                            problem = self.parse_problem(el[0])
-                            c["extends"] = problem["id"]
-                        else:
-                            parsed_info = re.split("/", re.sub("cpp\\+class:\\/+", "", el[0]))
-                            c["extends"] = parsed_info[len(parsed_info) - 1]
-                        break
-                c["location"] = self.get_classes_location(c["className"])
-                id = c["className"]
-                classes[id] = c
-        return classes, problem_classes
+    #                     if self.is_rascal_problem(el[0]):
+    #                         problem = self.parse_problem(el[0])
+    #                         c["extends"] = problem["id"]
+    #                     else:
+    #                         parsed_info = re.split("/", re.sub("cpp\\+class:\\/+", "", el[0]))
+    #                         c["extends"] = parsed_info[len(parsed_info) - 1]
+    #                     break
+    #             c["location"] = self.get_classes_location(c["className"])
+    #             id = c["className"]
+    #             classes[id] = c
+    #     return classes, problem_classes
+    #####
 
     def get_invokes(self, operations):
         data = self.parsed["callGraph"]
@@ -682,7 +722,7 @@ class Cpp:
                     source = operation[0].replace(".", "/")
                 else:
                     source = operation[0]
-                if len(element) > 1 :
+                if len(element) > 1:
                     if source in element[0]:
                         invoke = {}
                         invoke["source"] = operation[0]
@@ -702,70 +742,194 @@ class Cpp:
                         pass
         return invokes
 
-    def export(self, name):
+    def export(self):
 
-        print("[1/6] Adding files")
+        containment_dict = m3_utils.parse_M3_containment(self.parsed)
+        print("[x/x] Adding namespaces")
+        namespaces = containment_dict.get("namespaces").items()
+        for n in namespaces:
+            self.add_nodes("namespace", n)
+            if n[1].get("contains") is not None:
+                self.add_edges("contains", n)
+
+        translation_units = containment_dict.get("translation_units").items()
+        for tu in translation_units:
+            self.add_nodes("translation_unit", tu)
+            self.add_edges("contains", tu)
+        print(f"[x/x] Successfully added {len(namespaces)} namespaces to the graph.")
+        print("[x/x] Adding files")
+
         files = self.get_files()
         for file in files:
             self.add_nodes("file", file)
 
-        print(f"[1/6] Successfully added {len(files)} files to the graph.")
+        print(f"[x/x] Successfully added {len(files) + len(translation_units)} files to the graph.")
 
-        print("[2/6] Adding declarations")
-        functions, problem_declarations = self.get_functions()
+        # print("[x/x] Adding declarations")
+        # functions, problem_declarations = self.get_functions()
         # for primitve in self.primitives:
         #     self.add_nodes("Primitive", primitve)
-        for problem in problem_declarations.items():
-            self.add_nodes("problem", problem)
-        print(f"[2/6] Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
-        
-        for func in functions.items():
-            self.add_nodes("function", func)
-            # if func[1]["parameters"]:
-            #     self.add_nodes("parameter", func)
-            #     self.add_edges("hasParameter", func)
-            # if func[1]["variables"]:
-            #     self.add_nodes("variable", func)
-            #     self.add_edges("hasVariable", func)
-            # self.add_edges("returnType", func)
-            self.add_edges("contains", func)
-        print(f"[2/6] Successfully added {len(functions)} functions to the graph.")
+        # for problem in problem_declarations.items():
+        #     self.add_nodes("problem", problem)
+        # print(f"[x/x] Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
 
-        classes, problem_classes = self.get_classes()
+        # for func in functions.items():
+        #     self.add_nodes("function", func)
+        #     # if func[1]["parameters"]:
+        #     #     self.add_nodes("parameter", func)
+        #     #     self.add_edges("hasParameter", func)
+        #     # if func[1]["variables"]:
+        #     #     self.add_nodes("variable", func)
+        #     #     self.add_edges("hasVariable", func)
+        #     # self.add_edges("returnType", func)
+        #     self.add_edges("contains", func)
+        # print(f"[x/x] Successfully added {len(functions)} functions to the graph.")
 
-        print("[3/6] Adding classes")
+
+
+
+
+        print("[x/x] Adding classes")
+        classes = containment_dict.get("classes")
+        classes = m3_utils.parse_M3_function_Definitions(self.parsed, classes)  # get class locations
+        classes = m3_utils.parse_M3_extends(self.parsed, classes)  # get class extentions
         for c in classes.items():
             self.add_nodes("class", c)
-            if c[1]["extends"] is not None:
+            if c[1].get("extends") is not None:
                 self.add_edges("specializes", c)
             self.add_edges("contains", c)
-        print(f"[3/6] Successfully added {len(classes)} classes to the graph.")
-        
-        print("[4/6] Adding Rascal problem classes")
-        for pc in problem_classes.items():
-            self.add_nodes("problem", pc)
-        print(f"[4/6] Successfully added {len(problem_classes)} Rascal problem classes to the graph.")
+        print(f"[x/x] Successfully added {len(classes)} classes to the graph.")
 
-        print("[5/6] Adding methods")
-        methods = self.get_methods()
-        for m in methods.items():
-            self.add_nodes("method", m)
-            self.add_edges("hasScript", m)
-            # self.add_edges("returnType", m)
-            # if m[1]["parameters"]:
-            #     self.add_nodes("parameter", m)
-            #     self.add_edges("hasParameter", m)
-            # if m[1]["variables"]:
-            #     self.add_nodes("variable", m)
-            #     self.add_edges("hasVariable", m)
-        print(f"[5/6] Successfully added {len(methods)} methods to the graph.")
+        print("[x/x] Adding templates")
+        templates = containment_dict.get("templates").items()
+        for temp in templates:
+            self.add_nodes("template", temp)
+        print(f"[x/x] Successfully added {len(templates)} templates to the graph.")
 
-        print("[6/6] Adding invokes")
-        operations = deepcopy(methods)
-        operations.update(functions)
-        for invoke in self.get_invokes(operations):
-            self.add_edges("invokes", invoke)
-        print(f"[6/6] Successfully added {len(operations)} invokes to the graph.")
+        print("[x/x] Adding template types")
+        template_types = containment_dict.get("template_types").items()
+        for temp_type in template_types:
+            self.add_nodes("template_type", temp_type)
+        print(
+            f"[x/x] Successfully added {len(template_types)} template types to the graph."
+        )
+
+        print("[x/x] Adding specializations")
+        specializations = containment_dict.get("specializations").items()
+        for spec in specializations:
+            self.add_nodes("specialization", spec)
+        print(
+            f"[x/x] Successfully added {len(specializations)} specializations to the graph."
+        )
+
+        print("[x/x] Adding partial specializations")
+        partial_specializations = containment_dict.get(
+            "partial_specializations"
+        ).items()
+        for part_spec in partial_specializations:
+            self.add_nodes("partial_specialization", part_spec)
+        print(
+            f"[x/x] Successfully added {len(partial_specializations)} partial specializations to the graph."
+        )
+
+        # print("[x/x] Adding Rascal problem classes")
+        # for pc in problem_classes.items():
+        #     self.add_nodes("problem", pc)
+        # print(
+        #     f"[x/x] Successfully added {len(problem_classes)} Rascal problem classes to the graph."
+        # )
+
+        # print("[x/x] Adding methods")
+        # methods = self.get_methods()
+        # for m in methods.items():
+        #     self.add_nodes("method", m)
+        #     self.add_edges("hasScript", m)
+        #     # self.add_edges("returnType", m)
+        #     # if m[1]["parameters"]:
+        #     #     self.add_nodes("parameter", m)
+        #     #     self.add_edges("hasParameter", m)
+        #     # if m[1]["variables"]:
+        #     #     self.add_nodes("variable", m)
+        #     #     self.add_edges("hasVariable", m)
+        # print(f"[x/x] Successfully added {len(methods)} methods to the graph.")
+
+        # print("[x/x] Adding invokes")
+        # operations = deepcopy(methods)
+        # operations.update(functions)
+        # for invoke in self.get_invokes(operations):
+        #     self.add_edges("invokes", invoke)
+        # print(f"[x/x] Successfully added {len(operations)} invokes to the graph.")
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))
+
+
+#####
+# def export(self):
+
+#         print("[x/x] Adding files")
+#         files = self.get_files()
+#         for file in files:
+#             self.add_nodes("file", file)
+
+#         print(f"[x/x] Successfully added {len(files)} files to the graph.")
+
+#         print("[x/x] Adding declarations")
+#         functions, problem_declarations = self.get_functions()
+#         # for primitve in self.primitives:
+#         #     self.add_nodes("Primitive", primitve)
+#         # for problem in problem_declarations.items():
+#         #     self.add_nodes("problem", problem)
+#         # print(f"[x/x] Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
+
+#         for func in functions.items():
+#             self.add_nodes("function", func)
+#             # if func[1]["parameters"]:
+#             #     self.add_nodes("parameter", func)
+#             #     self.add_edges("hasParameter", func)
+#             # if func[1]["variables"]:
+#             #     self.add_nodes("variable", func)
+#             #     self.add_edges("hasVariable", func)
+#             # self.add_edges("returnType", func)
+#             self.add_edges("contains", func)
+#         print(f"[x/x] Successfully added {len(functions)} functions to the graph.")
+
+#         classes, problem_classes = self.get_classes()
+
+#         print("[x/x] Adding classes")
+#         for c in classes.items():
+#             self.add_nodes("class", c)
+#             if c[1]["extends"] is not None:
+#                 self.add_edges("specializes", c)
+#             self.add_edges("contains", c)
+#         print(f"[x/x] Successfully added {len(classes)} classes to the graph.")
+
+#         print("[x/x] Adding Rascal problem classes")
+#         for pc in problem_classes.items():
+#             self.add_nodes("problem", pc)
+#         print(f"[x/x] Successfully added {len(problem_classes)} Rascal problem classes to the graph.")
+
+#         print("[x/x] Adding methods")
+#         methods = self.get_methods()
+#         for m in methods.items():
+#             self.add_nodes("method", m)
+#             self.add_edges("hasScript", m)
+#             # self.add_edges("returnType", m)
+#             # if m[1]["parameters"]:
+#             #     self.add_nodes("parameter", m)
+#             #     self.add_edges("hasParameter", m)
+#             # if m[1]["variables"]:
+#             #     self.add_nodes("variable", m)
+#             #     self.add_edges("hasVariable", m)
+#         print(f"[x/x] Successfully added {len(methods)} methods to the graph.")
+
+#         print("[x/x] Adding invokes")
+#         operations = deepcopy(methods)
+#         operations.update(functions)
+#         for invoke in self.get_invokes(operations):
+#             self.add_edges("invokes", invoke)
+#         print(f"[x/x] Successfully added {len(operations)} invokes to the graph.")
+
+#         with open(self.path, "w") as graph_file:
+#             graph_file.write(json.dumps(self.lpg))
+#####
