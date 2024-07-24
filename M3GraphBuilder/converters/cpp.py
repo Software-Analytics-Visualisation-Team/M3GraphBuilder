@@ -183,21 +183,22 @@ class Cpp:
                 try:
                     if content[1].get("fragmentType") is constants.M3_CPP_TRANSLATION_UNIT_TYPE or content[1].get("fragmentType") is constants.M3_CPP_NAMESPACE_TYPE:
                         children_namespaces = content[1].get("contains")
-                        for child_namespace in children_namespaces:
-                            edge_id = hash(content[0]) + hash(
-                            child_namespace
-                        )
-                        self.lpg["elements"]["edges"].append(
-                            {
-                                "data": {
-                                    "id": edge_id,
-                                    "source": content[1].get("simpleName"),
-                                    "properties": {"weight": 1},
-                                    "target": child_namespace,
-                                    "labels": [kind],
+                        if children_namespaces is not None:
+                            for child_namespace in children_namespaces:
+                                edge_id = hash(content[0]) + hash(
+                                child_namespace
+                            )
+                            self.lpg["elements"]["edges"].append(
+                                {
+                                    "data": {
+                                        "id": edge_id,
+                                        "source": content[1].get("simpleName"),
+                                        "properties": {"weight": 1},
+                                        "target": child_namespace,
+                                        "labels": [kind],
+                                    }
                                 }
-                            }
-                        )
+                            )
 
                     # elif (
                     #     content[1]["location"].get("file") is None
