@@ -32,16 +32,13 @@ def parse_M3_containment(m3):
             case constants.M3_CPP_CLASS_TYPE | constants.M3_CPP_DEFERRED_CLASS_TYPE:
                 classes_dict[fragment["simpleName"]] = fragment
             case constants.M3_CPP_NAMESPACE_TYPE:
+                namespaces_dict[fragment["simpleName"]] = fragment
                 contained_fragment = parse_M3_loc_statement(rel[1])
                 if (
                     contained_fragment.get("fragmentType")
                     in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
                 ):
-                    if is_fragment_parsed(fragment, namespaces_dict):
-                        namespaces_dict[fragment["simpleName"]] = get_fragment_contains(namespaces_dict[fragment["simpleName"]], contained_fragment["simpleName"])
-                    else:
-                        fragment = get_fragment_contains(fragment, contained_fragment["simpleName"])
-                        namespaces_dict[fragment["simpleName"]] = fragment
+                    namespaces_dict[fragment["simpleName"]] = get_fragment_with_contains(namespaces_dict[fragment["simpleName"]], contained_fragment["simpleName"])
             case constants.M3_CPP_CLASS_TEMPLATE_TYPE:
                 templates_dict[fragment["simpleName"]] = fragment
             case constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE:
@@ -51,16 +48,13 @@ def parse_M3_containment(m3):
             case constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE:
                 partial_specializations_dict[fragment["simpleName"]] = fragment
             case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
+                translation_unit_dict[fragment["simpleName"]] = fragment
                 contained_fragment = parse_M3_loc_statement(rel[1])
                 if (
                     contained_fragment.get("fragmentType")
                     in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
                 ):
-                    if is_fragment_parsed(fragment, translation_unit_dict):
-                        translation_unit_dict[fragment["simpleName"]] = get_fragment_contains(translation_unit_dict[fragment["simpleName"]], contained_fragment["simpleName"])
-                    else:
-                        fragment = get_fragment_contains(fragment, contained_fragment["simpleName"])
-                        translation_unit_dict[fragment["simpleName"]] = fragment
+                    translation_unit_dict[fragment["simpleName"]] = get_fragment_with_contains(translation_unit_dict[fragment["simpleName"]], contained_fragment["simpleName"])
 
     result_dict = {
         "namespaces": namespaces_dict,
@@ -231,7 +225,7 @@ def get_fragment_declaration_location(declaration_loc):
 
     return location
 
-def get_fragment_contains(fragment, contained_fragment_name):
+def get_fragment_with_contains(fragment, contained_fragment_name):
     
     
     if fragment.get("contains") is not None:
