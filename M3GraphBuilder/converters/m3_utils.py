@@ -27,7 +27,7 @@ def parse_M3_containment(m3):
 
     for rel in containment_data:
         fragment = parse_M3_loc_statement(rel[0])
-        
+
         match fragment["fragmentType"]:
             case constants.M3_CPP_CLASS_TYPE | constants.M3_CPP_DEFERRED_CLASS_TYPE:
                 classes_dict[fragment["simpleName"]] = fragment
@@ -38,7 +38,12 @@ def parse_M3_containment(m3):
                     contained_fragment.get("fragmentType")
                     in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
                 ):
-                    namespaces_dict[fragment["simpleName"]] = get_fragment_with_contains(namespaces_dict[fragment["simpleName"]], contained_fragment["simpleName"])
+                    namespaces_dict[fragment["simpleName"]] = (
+                        get_fragment_with_contains(
+                            namespaces_dict[fragment["simpleName"]],
+                            contained_fragment["simpleName"],
+                        )
+                    )
             case constants.M3_CPP_CLASS_TEMPLATE_TYPE:
                 templates_dict[fragment["simpleName"]] = fragment
             case constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE:
@@ -54,7 +59,12 @@ def parse_M3_containment(m3):
                     contained_fragment.get("fragmentType")
                     in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
                 ):
-                    translation_unit_dict[fragment["simpleName"]] = get_fragment_with_contains(translation_unit_dict[fragment["simpleName"]], contained_fragment["simpleName"])
+                    translation_unit_dict[fragment["simpleName"]] = (
+                        get_fragment_with_contains(
+                            translation_unit_dict[fragment["simpleName"]],
+                            contained_fragment["simpleName"],
+                        )
+                    )
 
     result_dict = {
         "namespaces": namespaces_dict,
@@ -65,8 +75,6 @@ def parse_M3_containment(m3):
         "partial_specializations": partial_specializations_dict,
         "translation_units": translation_unit_dict,
     }
-
-    
 
     return result_dict
 
@@ -88,7 +96,7 @@ def parse_M3_loc_statement(loc_statement):
     fragment = {}
 
     fragment_loc_schema = re.match(constants.M3_SCHEMA_REGEX, loc_statement)
-    
+
     match fragment_loc_schema[0]:
         case constants.M3_CLASS_LOC_SCM:  # parse class loc
             fragment["simpleName"] = parse_rascal_loc(
@@ -181,11 +189,15 @@ def parse_M3_loc_statement(loc_statement):
 
 
 def parse_rascal_loc(schema, loc):
-    
-    loc_path = re.sub(schema, "", loc)
-    loc_fragment = re.split("/", loc_path)[-1]
 
-    if re.search(r'\(|\)', loc_fragment):
+    loc_path = re.sub(schema, "", loc)
+    parsed_loc = re.split("/", loc_path)
+    loc_fragment = parsed_loc[-1]
+
+    if loc_fragment == "":
+        loc_fragment = parsed_loc[-2]
+
+    if re.search(r"\(|\)", loc_fragment):
         loc_fragment = re.split("\\(", loc_fragment)[0]
 
     return loc_fragment
@@ -211,7 +223,7 @@ def parse_rascal_problem_loc(problem_loc):
         else:
             return None  # Invalid format
     except Exception as e:
-        
+
         return None
 
 
@@ -225,17 +237,18 @@ def get_fragment_declaration_location(declaration_loc):
 
     return location
 
+
 def get_fragment_with_contains(fragment, contained_fragment_name):
-    
-    
+
     if fragment.get("contains") is not None:
-        
+
         fragment["contains"].append(contained_fragment_name)
     else:
-        
+
         fragment["contains"] = [contained_fragment_name]
-    
+
     return fragment
+
 
 def is_fragment_parsed(fragment, fragments):
     return bool(fragments.get(fragment["simpleName"]) is not None)
