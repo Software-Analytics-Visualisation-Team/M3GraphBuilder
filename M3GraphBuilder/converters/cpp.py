@@ -181,13 +181,16 @@ class Cpp:
                 )
             case "contains":
                 try:
-                    if content[1].get("fragmentType") is constants.M3_CPP_TRANSLATION_UNIT_TYPE or content[1].get("fragmentType") is constants.M3_CPP_NAMESPACE_TYPE:
+                    if (
+                        content[1].get("fragmentType")
+                        is constants.M3_CPP_TRANSLATION_UNIT_TYPE
+                        or content[1].get("fragmentType")
+                        is constants.M3_CPP_NAMESPACE_TYPE
+                    ):
                         children_namespaces = content[1].get("contains")
                         if children_namespaces is not None:
                             for child_namespace in children_namespaces:
-                                edge_id = hash(content[0]) + hash(
-                                child_namespace
-                            )
+                                edge_id = hash(content[0]) + hash(child_namespace)
                             self.lpg["elements"]["edges"].append(
                                 {
                                     "data": {
@@ -240,68 +243,62 @@ class Cpp:
                         }
                     )
 
+    def append_node(self, node_id, properties, labels):
+        try:
+            self.lpg["elements"]["nodes"].append(
+                {"data": {"id": node_id, "properties": properties, "labels": labels}}
+            )
+        except Exception as e:
+            print(f"Problem adding {kind} node relationship for ", id)
+            print(e)
+
     def add_nodes(self, kind, content):
+        node_id = {}
+        properties = {}
+        labels = []
+
         match kind:
             case "problem":
-                self.lpg["elements"]["nodes"].append(
-                    {
-                        "data": {
-                            "id": content[1]["id"],
-                            "properties": {
-                                "simpleName": content[1]["id"],
-                                "description": content[1]["message"],
-                                "kind": kind,
-                            },
-                            "labels": ["Problem"],
-                        }
-                    }
-                )
+                node_id = content[1]["id"]
+                properties = {
+                    "simpleName": content[1]["id"],
+                    "description": content[1]["message"],
+                    "kind": kind,
+                }
+                labels = [["Problem"]]
+
             case "translation_unit":
-                self.lpg["elements"]["nodes"].append(
-                    {
-                        "data": {
-                            "id": content[1].get("simpleName"),
-                            "properties": {"simpleName": content[1].get("simpleName"),
-                            "description": content[1].get("loc"),
-                            "kind": kind,
-                            },
-                            "labels": ["Container"],
-                        }       
-                    }
-                )
+                node_id = content[1].get("simpleName")
+                properties = {
+                    "simpleName": content[1].get("simpleName"),
+                    "description": content[1].get("loc"),
+                    "kind": kind,
+                }
+                labels = [["Container"]]
+
             case "file":
-                self.lpg["elements"]["nodes"].append(
-                    {
-                        "data": {
-                            "id": content,
-                            "properties": {"simpleName": content, "kind": kind},
-                            "labels": ["Container"],
-                        }
-                    }
-                )
+                node_id = content
+                properties = {"simpleName": content, "kind": kind}
+                labels = ["Container"]
+
             case "function":
+                node_id = content[0]
+                properties = {
+                    "simpleName": content[1]["functionName"],
+                    "kind": kind,
+                    # "vulnerabilities": vulnerabilities,
+                    "location": content[1]["location"],
+                }
+                labels = [
+                    "Operation",
+                    # "vulnerable" if len(vulnerabilities) > 0 else "",
+                ]
                 # vulnerabilities = []
                 # if self.issues is not None:
                 #     for issue in self.issues:
                 #         if issue["target"]["script"] == content[0]:
                 #             vulnerabilities.append(issue)
-                self.lpg["elements"]["nodes"].append(
-                    {
-                        "data": {
-                            "id": content[0],
-                            "properties": {
-                                "simpleName": content[1]["functionName"],
-                                "kind": kind,
-                                # "vulnerabilities": vulnerabilities,
-                                "location": content[1]["location"],
-                            },
-                            "labels": [
-                                "Operation",
-                                # "vulnerable" if len(vulnerabilities) > 0 else "",
-                            ],
-                        }
-                    }
-                )
+
             case "parameter":
                 for parameter in content[1]["parameters"]:
                     if parameter is not None and parameter != "":
@@ -342,34 +339,30 @@ class Cpp:
                             }
                         }
                     )
-            case "class" | "namespace" | "template" | "template_type" | "specialization" | "partial_specialization":
+            case (
+                "class"
+                | "namespace"
+                | "template"
+                | "template_type"
+                | "specialization"
+                | "partial_specialization"
+            ):
                 # print(content)
                 # vulnerabilities = []
                 # if self.issues is not None:
                 #     for issue in self.issues:
                 #         if issue["target"]["script"] == content[0]:
                 #             vulnerabilities.append(issue)
-                try:
-                    self.lpg["elements"]["nodes"].append(
-                        {
-                            "data": {
-                                "id": content[1].get("simpleName"),
-                                "properties": {
-                                    "simpleName": content[1].get("simpleName"),
-                                    "kind": kind,
-                                    #"vulnerabilities": vulnerabilities,
-                                    "description": content[1].get("loc")
-                                },
-                                "labels": [
-                                    "Structure",
-                                    # "vulnerable" if len(vulnerabilities) > 0 else "",
-                                ],
-                            }
-                        }
-                    )
-                except Exception as e:
-                    print(f"Problem adding {kind} node relationship for ", content)
-                    print(e)
+                node_id = content[1].get("simpleName")
+                properties = {
+                    "simpleName": content[1].get("simpleName"),
+                    "kind": kind,
+                    # "vulnerabilities": vulnerabilities,
+                    "description": content[1].get("loc"),
+                }
+                labels = ["Structure"]
+                # "vulnerable" if len(vulnerabilities) > 0 else "",
+
             case "Primitive":
                 self.lpg["elements"]["nodes"].append(
                     {
@@ -397,6 +390,8 @@ class Cpp:
                         )
                         if variable["type"] is not None:
                             self.add_edges("type", {content[0]: variable})
+
+        self.append_node(node_id, properties, labels)
 
     def get_files(self):
         data = self.parsed["provides"]
@@ -764,7 +759,9 @@ class Cpp:
         for file in files:
             self.add_nodes("file", file)
 
-        print(f"[x/x] Successfully added {len(files) + len(translation_units)} files to the graph.")
+        print(
+            f"[x/x] Successfully added {len(files) + len(translation_units)} files to the graph."
+        )
 
         # print("[x/x] Adding declarations")
         # functions, problem_declarations = self.get_functions()
@@ -786,14 +783,14 @@ class Cpp:
         #     self.add_edges("contains", func)
         # print(f"[x/x] Successfully added {len(functions)} functions to the graph.")
 
-
-
-
-
         print("[x/x] Adding classes")
         classes = containment_dict.get("classes")
-        classes = m3_utils.parse_M3_function_Definitions(self.parsed, classes)  # get class locations
-        classes = m3_utils.parse_M3_extends(self.parsed, classes)  # get class extentions
+        classes = m3_utils.parse_M3_function_Definitions(
+            self.parsed, classes
+        )  # get class locations
+        classes = m3_utils.parse_M3_extends(
+            self.parsed, classes
+        )  # get class extentions
         for c in classes.items():
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
