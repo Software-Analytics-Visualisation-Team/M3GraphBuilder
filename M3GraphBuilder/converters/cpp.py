@@ -317,28 +317,37 @@ class Cpp:
                         if "type" in parameter.keys() and parameter["type"] is not None:
                             self.add_edges("type", {content[0]: parameter})
             case "method":
-                vulnerabilities = []
-                if self.issues is not None:
-                    for issue in self.issues:
-                        if issue["target"]["script"] == content[0]:
-                            vulnerabilities.append(issue)
-                if content[0] != "" and content[1] != "":
-                    self.lpg["elements"]["nodes"].append(
-                        {
-                            "data": {
-                                "id": content[0],
-                                "properties": {
-                                    "simpleName": content[1]["methodName"],
-                                    "kind": kind,
-                                    "vulnerabilities": vulnerabilities,
-                                },
-                                "labels": [
-                                    "Operation",
-                                    # "vulnerable" if len(vulnerabilities) > 0 else "",
-                                ],
-                            }
-                        }
-                    )
+                # vulnerabilities = []
+                # if self.issues is not None:
+                #     for issue in self.issues:
+                #         if issue["target"]["script"] == content[0]:
+                #             vulnerabilities.append(issue)
+                # if content[0] != "" and content[1] != "":
+                node_id = content[0]
+                properties = {
+                    "simpleName": content[1].get("simpleName"),
+                    "kind": kind,
+                    "description": content[1].get("loc"),
+                    # "vulnerabilities": vulnerabilities,
+                }
+                labels = ["Operation"]
+                # "vulnerable" if len(vulnerabilities) > 0 else "",
+                # self.lpg["elements"]["nodes"].append(
+                #     {
+                #         "data": {
+                #             "id": content[0],
+                #             "properties": {
+                #                 "simpleName": content[1]["methodName"],
+                #                 "kind": kind,
+                #                 "vulnerabilities": vulnerabilities,
+                #             },
+                #             "labels": [
+                #                 "Operation",
+                #                 # "vulnerable" if len(vulnerabilities) > 0 else "",
+                #             ],
+                #         }
+                #     }
+                # )
             case (
                 "class"
                 | "namespace"
@@ -515,96 +524,96 @@ class Cpp:
                 variables.append(variable)
         return variables
 
-    def get_methods(self):
-        data = self.parsed["declaredType"]
-        methods = {}
-        for element in data:
-            parameters = []
+    # def get_methods(self):
+    #     data = self.parsed["declaredType"]
+    #     methods = {}
+    #     for element in data:
+    #         parameters = []
 
-            if re.match("cpp\\+method", element[0]):
-                method = dict()
-                # Addition
-                elementParts = re.split(
-                    "\\/", re.sub("cpp\\+method:\\/\\/\\/", "", element[0])
-                )
-                # method["class"] = "/".join(elementParts[:-1])
-                # method["class"] = elementParts[len(elementParts) - 2]
+    #         if re.match("cpp\\+method", element[0]):
+    #             method = dict()
+    #             # Addition
+    #             elementParts = re.split(
+    #                 "\\/", re.sub("cpp\\+method:\\/\\/\\/", "", element[0])
+    #             )
+    #             # method["class"] = "/".join(elementParts[:-1])
+    #             # method["class"] = elementParts[len(elementParts) - 2]
 
-                method["methodName"] = re.split(
-                    "\\(", elementParts[len(elementParts) - 1]
-                )[0]
-                # End Addition
-                # #####
-                # method["location"] = self.get_method_location(
-                #     method["class"], method["methodName"]
-                # )
-                #####
+    #             method["methodName"] = re.split(
+    #                 "\\(", elementParts[len(elementParts) - 1]
+    #             )[0]
+    #             # End Addition
+    #             # #####
+    #             # method["location"] = self.get_method_location(
+    #             #     method["class"], method["methodName"]
+    #             # )
+    #             #####
 
-                method["returnType"] = self.get_type(
-                    element[1]["returnType"],
-                    self.get_type_field(element[1]["returnType"]),
-                )
+    #             method["returnType"] = self.get_type(
+    #                 element[1]["returnType"],
+    #                 self.get_type_field(element[1]["returnType"]),
+    #             )
 
-                # Addition of second if statement
-                # if element[1]["parameterTypes"]:
-                #     if "file" in method["location"].keys():
-                #         parameters = self.get_parameters(
-                #             method["methodName"],
-                #             method["location"].get("file"),
-                #             method["class"],
-                #         )
-                #     else:
-                #         parameters = self.get_parameters(
-                #             method["methodName"], "none", method["class"]
-                #         )
+    #             # Addition of second if statement
+    #             # if element[1]["parameterTypes"]:
+    #             #     if "file" in method["location"].keys():
+    #             #         parameters = self.get_parameters(
+    #             #             method["methodName"],
+    #             #             method["location"].get("file"),
+    #             #             method["class"],
+    #             #         )
+    #             #     else:
+    #             #         parameters = self.get_parameters(
+    #             #             method["methodName"], "none", method["class"]
+    #             #         )
 
-                #     i = 0
-                #     # Addition
-                #     if len(parameters) != 0:
-                #         for parameter in element[1]["parameterTypes"]:
-                #             if i < len(parameters):
-                #                 parameters[i]["type"] = self.get_parameter_type(
-                #                     parameter, self.get_type_field(parameter)
-                #                 )
-                #                 i += 1
+    #             #     i = 0
+    #             #     # Addition
+    #             #     if len(parameters) != 0:
+    #             #         for parameter in element[1]["parameterTypes"]:
+    #             #             if i < len(parameters):
+    #             #                 parameters[i]["type"] = self.get_parameter_type(
+    #             #                     parameter, self.get_type_field(parameter)
+    #             #                 )
+    #             #                 i += 1
 
-                method["parameters"] = {}  # TODO: Attach parameters
-                method["variables"] = self.get_variables(element[0])
-                id = method["class"] + "." + method["methodName"]
-                methods[id] = method
-        return methods
+    #             method["parameters"] = {}  # TODO: Attach parameters
+    #             method["variables"] = self.get_variables(element[0])
+    #             id = method["class"] + "." + method["methodName"]
+    #             methods[id] = method
+    #     return methods
 
-    def get_type_field(self, element):
-        try:
-            if "baseType" in element.keys():
-                return "baseType"
-            if "decl" in element.keys():
-                return "decl"
-            if "type" in element.keys():
-                return "type"
-            if "msg" in element.keys():
-                return "msg"
-            if "templateArguments" in element.keys():
-                return None
-        except:
-            return None
+    # def get_type_field(self, element):
+    #     try:
+    #         if "baseType" in element.keys():
+    #             return "baseType"
+    #         if "decl" in element.keys():
+    #             return "decl"
+    #         if "type" in element.keys():
+    #             return "type"
+    #         if "msg" in element.keys():
+    #             return "msg"
+    #         if "templateArguments" in element.keys():
+    #             return None
+    #     except:
+    #         return None
 
-    def get_type(self, element, field):
-        if self.get_type_field(element.get(field)) is not None:
-            return self.get_type(element[field], self.get_type_field(element[field]))
-        else:
-            if field == "baseType":
-                return element[field]
-            if field == "decl":
-                if re.match("cpp\\+classTemplate", element[field]):
-                    return "string"
-                else:
-                    elementParts = re.split(
-                        "\\/", re.sub("cpp\\+class:\\/\\/\\/", "", element[field])
-                    )
-                    return elementParts[len(elementParts) - 1]
-            if field == "msg":
-                return None
+    # def get_type(self, element, field):
+    #     if self.get_type_field(element.get(field)) is not None:
+    #         return self.get_type(element[field], self.get_type_field(element[field]))
+    #     else:
+    #         if field == "baseType":
+    #             return element[field]
+    #         if field == "decl":
+    #             if re.match("cpp\\+classTemplate", element[field]):
+    #                 return "string"
+    #             else:
+    #                 elementParts = re.split(
+    #                     "\\/", re.sub("cpp\\+class:\\/\\/\\/", "", element[field])
+    #                 )
+    #                 return elementParts[len(elementParts) - 1]
+    #         if field == "msg":
+    #             return None
 
     def get_parameter_type(self, element, field):
         if field == "decl":
@@ -837,7 +846,11 @@ class Cpp:
         #     f"[x/x] Successfully added {len(problem_classes)} Rascal problem classes to the graph."
         # )
 
-        # print("[x/x] Adding methods")
+        print("[x/x] Adding methods")
+        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
+        methods = declaredType_dicts.get("methods").items()
+        for m in methods:
+            self.add_nodes("method", m)
         # methods = self.get_methods()
         # for m in methods.items():
         #     self.add_nodes("method", m)
@@ -849,7 +862,7 @@ class Cpp:
         #     # if m[1]["variables"]:
         #     #     self.add_nodes("variable", m)
         #     #     self.add_edges("hasVariable", m)
-        # print(f"[x/x] Successfully added {len(methods)} methods to the graph.")
+        print(f"[x/x] Successfully added {len(methods)} methods to the graph.")
 
         # print("[x/x] Adding invokes")
         # operations = deepcopy(methods)

@@ -10,6 +10,7 @@ M3_CPP_FUNCTION_TYPE = r"cpp+function"
 M3_CPP_FUNCTION_TEMPLATE_TYPE = r"cpp+functionTemplate"
 M3_CPP_METHOD_TYPE = r"cpp+method"
 M3_CPP_CONSTRUCTOR_TYPE = r"cpp+constructor"
+M3_CPP_VARIABLE_TYPE = r"cpp+variable"
 M3_CPP_TRANSLATION_UNIT_TYPE = r"cpp+translationUnit"
 UNSUPPORTED_TYPE = r"unsupported"
 

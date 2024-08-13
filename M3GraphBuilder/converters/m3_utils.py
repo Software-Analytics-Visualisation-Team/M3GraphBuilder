@@ -15,6 +15,40 @@ def parse_M3_function_Definitions(m3, fragments):
     return fragments
 
 
+def parse_M3_declaredType(m3):
+    # methods, functions, variables
+    methods_dict = {}
+    functions_dict = {}
+    variables_dict = {}
+
+    declaredType_data = m3["declaredType"]
+    for rel in declaredType_data:
+        fragment = parse_M3_loc_statement(rel[0])
+
+        match fragment["fragmentType"]:
+            case constants.M3_CPP_METHOD_TYPE:
+                fragment_info = rel[1]["returnType"]
+                fragment["returnType"] = get_fragment_type(
+                    fragment_info, get_fragment_type_key(fragment_info)
+                )
+                methods_dict[fragment["simpleName"]] = fragment
+            case constants.M3_CPP_FUNCTION_TYPE:
+                functions_dict[fragment["simpleName"]] = fragment
+            case constants.M3_CPP_VARIABLE_TYPE:
+                fragment["type"] = get_fragment_type(
+                    rel[1], get_fragment_type_key(rel[1])
+                )
+                variables_dict[fragment["simpleName"]] = fragment
+
+    result = {
+        "methods": methods_dict,
+        "functions": functions_dict,
+        "variables": variables_dict,
+    }
+
+    return result
+
+
 def parse_M3_containment(m3):
     containment_data = m3["containment"]
     namespaces_dict = {}
@@ -182,6 +216,12 @@ def parse_M3_loc_statement(loc_statement):
                 fragment["simpleName"] = parsed_problem_loc.get("id")
             fragment["fragmentType"] = constants.M3_PROBLEM_TYPE
             fragment["loc"] = loc_statement
+        case constants.M3_VARIABLE_LOC_SCM:  # parse variable loc
+            fragment["simpleName"] = parse_rascal_loc(
+                constants.M3_VARIABLE_LOC_SCM, loc_statement
+            )
+            fragment["fragmentType"] = constants.M3_CPP_VARIABLE_TYPE
+            fragment["loc"] = loc_statement
         case _:
             fragment["fragmentType"] = constants.UNSUPPORTED_TYPE
 
@@ -248,6 +288,40 @@ def get_fragment_with_contains(fragment, contained_fragment_name):
         fragment["contains"] = [contained_fragment_name]
 
     return fragment
+
+
+def get_fragment_type_key(field):
+    try:
+        if "baseType" in fragment_field.keys():
+            return "baseType"
+        if "decl" in fragment_field.keys():
+            return "decl"
+        if "type" in fragment_field.keys():
+            return "type"
+        if "msg" in elemefragment_fieldnt.keys():
+            return "msg"
+        if "templateArguments" in fragment_field.keys():
+            return None
+    except:
+        return None
+
+
+def get_fragment_type(element, field):
+    if get_fragment_type_key(element.get(field)) is not None:
+        return get_fragment_type(element[field], get_fragment_type_key(element[field]))
+    else:
+        if field == "baseType":
+            return element[field]
+        if field == "decl":
+            if re.match(constants.M3_CPP_CLASS_TEMPLATE_TYPE, element[field]):
+                return "string"
+            else:
+                elementParts = re.split(
+                    "\\/", re.sub(constants.M3_CLASS_LOC_SCM, "", element[field])
+                )
+                return elementParts[len(elementParts) - 1]
+        if field == "msg":
+            return None
 
 
 def is_fragment_parsed(fragment, fragments):

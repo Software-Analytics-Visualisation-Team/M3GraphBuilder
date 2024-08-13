@@ -355,7 +355,9 @@ class C:
         data = self.parsed["functionDefinitions"]
         location = {}
         for element in data:
-            if re.match("cpp\\+method:\\/+{}\\/{}".format(className, method), element[0]):
+            if re.match(
+                "cpp\\+method:\\/+{}\\/{}".format(className, method), element[0]
+            ):
                 location["file"], location["position"] = re.split("\\(", element[1])
                 location["file"] = re.sub("\\|file:.+/", "", location["file"])[:-1]
                 location["position"] = "(" + location["position"]
@@ -506,7 +508,9 @@ class C:
                     ):
                         return "string"
                     return re.sub(
-                        "cpp\\+class:\\/+", "", element[1][field1][field2]["type"]["decl"]
+                        "cpp\\+class:\\/+",
+                        "",
+                        element[1][field1][field2]["type"]["decl"],
                     )
         if field2 == "baseType":
             return element[1][field1][field2]
@@ -573,7 +577,10 @@ class C:
         data = self.parsed["functionDefinitions"]
         location = {}
         for element in data:
-            if re.match("cpp\\+constructor:\\/+\\/" + c, element[0]) and c in element[0]:
+            if (
+                re.match("cpp\\+constructor:\\/+\\/" + c, element[0])
+                and c in element[0]
+            ):
                 location["file"], location["position"] = re.split("\\(", element[1])
                 location["file"] = re.sub("\\|file:.+/", "", location["file"])[:-1]
                 location["position"] = "(" + location["position"]
