@@ -272,7 +272,7 @@ class Cpp:
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "description": content[1].get("loc"),
-                    "kind": kind,
+                    "kind": "file",
                 }
                 labels = [["Container"]]
 
