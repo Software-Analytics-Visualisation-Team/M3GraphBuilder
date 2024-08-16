@@ -18,16 +18,16 @@ def find_node_discrpenecies(lpg_path):
             edge_source_ids = set(edge.get("data").get("source") for edge in edges)
             edge_target_ids = set(edge.get("data").get("target") for edge in edges)
             node_ids_in_edges = edge_source_ids | edge_target_ids
-
+            
             missing_ids = []
             # Find the difference between node_ids and edge_ids
             for nodeId in node_ids_in_edges:
                 if nodeId not in node_ids:
                     missing_ids.append(nodeId)
 
-            if len(missing_ids) > 0:
+            if len(missing_ids) > 1:
                 missing_ids.remove(missing_ids[0])  # Remove empty set from list.
 
         return missing_ids
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"lpg_validator error: {str(e)}"
