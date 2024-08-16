@@ -4,6 +4,7 @@ import M3GraphBuilder.converters.constants as constants
 
 def parse_M3_function_Definitions(m3, fragments):
     function_Definitions_data = m3["functionDefinitions"]
+    unlocated_fragments = {}
     for rel in function_Definitions_data:
         function_Definitions_fragment = parse_M3_loc_statement(rel[0])
         for key in fragments.keys():
@@ -11,8 +12,30 @@ def parse_M3_function_Definitions(m3, fragments):
                 "simpleName"
             ):
                 fragments[key]["location"] = get_fragment_declaration_location(rel[1])
+    
+    for fragment in fragments.items():
+        if fragment[1].get("location") is None:
+            unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
 
-    return fragments
+    return fragments, unlocated_fragments
+
+def parse_M3_declarations(m3, fragments):
+    declarations_data = m3["declarations"]
+    unlocated_fragments = {}
+    for rel in declarations_data:
+        declarations_fragment = parse_M3_loc_statement(rel[0])
+        for key in fragments.keys():
+            if fragments[key].get("simpleName") == declarations_fragment.get(
+                "simpleName"
+            ):
+                fragments[key]["location"] = get_fragment_declaration_location(rel[1])
+    
+    for fragment in fragments.items():
+        if fragment[1].get("location") is None:
+            unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+
+    return fragments, unlocated_fragments
+
 
 
 def parse_M3_declaredType(m3):
@@ -157,11 +180,12 @@ def parse_M3_loc_statement(loc_statement):
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TEMPLATE_TYPE
             fragment["loc"] = loc_statement
         case constants.M3_METHOD_LOC_SCM:  # parse method loc
-            fragment["simpleName"] = parse_rascal_loc(
-                constants.M3_METHOD_LOC_SCM, loc_statement
-            )
+            fragment_class, fragment_name = parse_rascal_method_loc( loc_statement )
+            fragment["simpleName"] = fragment_name
             fragment["fragmentType"] = constants.M3_CPP_METHOD_TYPE
             fragment["loc"] = loc_statement
+
+            fragment["class"] = fragment_class
         case constants.M3_NAMESPACE_LOC_SCM:  # parse namespace loc
             fragment["simpleName"] = parse_rascal_loc(
                 constants.M3_NAMESPACE_LOC_SCM, loc_statement
@@ -242,6 +266,22 @@ def parse_rascal_loc(schema, loc):
 
     return loc_fragment
 
+def parse_rascal_method_loc(method_loc):
+
+    loc_path = method_loc.replace(constants.M3_METHOD_LOC_SCM, "")
+    parsed_loc = re.split("/", loc_path)
+    method_loc_class = parsed_loc[-2]
+    method_loc_fragment = parsed_loc[-1]
+
+    if method_loc_fragment == "":
+        method_loc_class = parsed_loc[-3]
+        method_loc_fragment = parsed_loc[-2]
+
+    if re.search(r"\(|\)", method_loc_fragment):
+        method_loc_fragment = re.split("\\(", method_loc_fragment)[0]
+
+    return method_loc_class, method_loc_fragment
+
 
 def parse_rascal_problem_loc(problem_loc):
     try:
@@ -270,7 +310,6 @@ def parse_rascal_problem_loc(problem_loc):
 def get_fragment_declaration_location(declaration_loc):
     location = {}
 
-    declaration_loc = "|file:///C:/Development/TF/stage/FEI_CPPLIBS/sdk/include/cpplib/concurrency/threadsafe_section_itf.h|(1364,37)"
     location["file"], location["position"] = re.split("\\(", declaration_loc)
     location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
     location["position"] = "(" + location["position"]

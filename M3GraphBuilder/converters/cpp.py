@@ -11,69 +11,27 @@ class Cpp:
     parsed = None
     path = None
 
-    def __init__(self, path, parsed, issues=None) -> None:
+    def __init__(self, path, parsed, verbose, issues=None) -> None:
         self.path = path
         self.parsed = parsed
+        self.verbose = verbose
         self.issues = issues
 
     def add_edges(self, kind, content):
+        edge_id = {}
+        source = {}
+        properties = {}
+        target = {}
+        labels = []
+
         match kind:
             case "hasScript":
                 edge_id = hash(content[0])
-                self.lpg["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": edge_id,
-                            "source": content[1]["class"],
-                            "properties": {"weight": 1},
-                            "target": content[0],
-                            "labels": [kind],
-                        }
-                    }
-                )
-                try:
-                    if len(content[1]["location"]) != 0:
-                        edge_id = (
-                            hash(content[1]["class"])
-                            + hash(content[0])
-                            + hash(content[1]["location"].get("file"))
-                        )
-                        self.lpg["elements"]["edges"].append(
-                            {
-                                "data": {
-                                    "id": edge_id,
-                                    "source": content[1]["location"].get("file"),
-                                    "properties": {"weight": 1},
-                                    "target": content[0],
-                                    "labels": ["contains"],
-                                }
-                            }
-                        )
-                except:
-                    source = next(
-                        item
-                        for item in self.lpg["elements"]["edges"]
-                        if item["data"]["target"] == content[1]["class"]
-                        and "contains" in item["data"]["labels"]
-                    )
-                    if source is not None:
-                        edge_id = (
-                            hash(content[1]["class"])
-                            + hash(content[0])
-                            + hash(source["data"]["source"])
-                        )
-
-                        self.lpg["elements"]["edges"].append(
-                            {
-                                "data": {
-                                    "id": edge_id,
-                                    "source": source["data"]["source"],
-                                    "properties": {"weight": 1},
-                                    "target": content[0],
-                                    "labels": ["contains"],
-                                }
-                            }
-                        )
+                source = content[1].get("class")
+                properties = {"weight": 1}
+                target = content[0]
+                labels = [kind]
+               
             case "hasParameter":
                 for parameter in content[1]["parameters"]:
                     if parameter is not None and parameter != "":
@@ -107,20 +65,15 @@ class Cpp:
                                     }
                                 }
                             )
+
             case "returnType":
-                if content[0] is not None and content[1]["returnType"] is not None:
+                # if content[0] is not None and content[1]["returnType"] is not None:
                     edge_id = hash(content[0]) + hash(content[1]["returnType"])
-                    self.lpg["elements"]["edges"].append(
-                        {
-                            "data": {
-                                "id": edge_id,
-                                "source": content[0],
-                                "properties": {"weight": 1},
-                                "target": content[1]["returnType"],
-                                "labels": [kind],
-                            }
-                        }
-                    )
+                    source = content[0]
+                    properties = {"weight": 1}
+                    target = content[1]["returnType"]
+                    labels = [kind]
+
             case "specializes":
                 edge_id = hash(content[0]) + hash(content[1]["extends"])
                 self.lpg["elements"]["edges"].append(
@@ -134,6 +87,7 @@ class Cpp:
                         }
                     }
                 )
+
             case "hasVariable":
                 for variable in content[1]["variables"]:
                     if variable is not None and variable != "":
@@ -166,6 +120,7 @@ class Cpp:
                                     }
                                 }
                             )
+
             case "invokes":
                 edge_id = hash(content["target"]) + hash(content["source"])
                 self.lpg["elements"]["edges"].append(
@@ -179,6 +134,7 @@ class Cpp:
                         }
                     }
                 )
+
             case "contains":
                 try:
                     if (
@@ -202,27 +158,43 @@ class Cpp:
                                     }
                                 }
                             )
+                    else:
+                        try:
+                            if content[1].get("location") is not None:
+                                
+                                edge_id = (
+                                    hash(content[1]["class"])
+                                    + hash(content[0])
+                                    + hash(content[1]["location"].get("file"))
+                                )
+                                source = content[1]["location"].get("file")
+                                properties = {"weight": 1}
+                                target = content[0]
+                                labels = ["contains"]
+                        except:
+                            print(f"Failed adding contains relationship between {source} and {target}")
+                            print("Trying backup.")
+                            source = next(
+                                item
+                                for item in self.lpg["elements"]["edges"]
+                                if item["data"]["target"] == content[1]["class"]
+                                and "contains" in item["data"]["labels"]
+                            )
+                            
+                            if source is not None:
+                                edge_id = (
+                                    hash(content[1]["class"])
+                                    + hash(content[0])
+                                    + hash(source["data"]["source"])
+                                )
+                                source = source["data"]["source"]
+                                properties = {"weight": 1}
+                                target = content[0]
+                                labels = ["contains"]
+                            else:
+                                print(f"Failed to add a contains edge for {content}")
+                                return
 
-                    # elif (
-                    #     content[1]["location"].get("file") is None
-                    #     or len(content[1]["location"]) == 0
-                    # ):
-                    #     pass
-                    # else:
-                    #     edge_id = hash(content[0]) + hash(
-                    #         content[1]["location"].get("file")
-                    #     )
-                    #     self.lpg["elements"]["edges"].append(
-                    #         {
-                    #             "data": {
-                    #                 "id": edge_id,
-                    #                 "source": content[1]["location"].get("file"),
-                    #                 "properties": {"weight": 1},
-                    #                 "target": content[0],
-                    #                 "labels": [kind],
-                    #             }
-                    #         }
-                    #     )
                 except Exception as e:
                     print("Problem adding 'contains' relationship for ", content)
                     print("Exception message:", e)
@@ -242,6 +214,9 @@ class Cpp:
                             }
                         }
                     )
+        
+        if edge_id and source and properties and target and labels:
+            self.append_edge(edge_id, source, properties, target, labels)
 
     def append_node(self, node_id, properties, labels):
         try:
@@ -250,6 +225,23 @@ class Cpp:
             )
         except Exception as e:
             print(f"Problem adding {kind} node relationship for ", id)
+            print(e)
+    
+    def append_edge(self, edge_id, source, properties, target, labels):
+        try:
+            self.lpg["elements"]["edges"].append(
+                            {
+                                "data": {
+                                    "id": edge_id,
+                                    "source": source,
+                                    "properties": properties,
+                                    "target": target,
+                                    "labels": labels,
+                                }
+                            }
+                        )
+        except Exception as e:
+            print(f"Problem adding edge with id: {edge_id} to the graph")
             print(e)
 
     def add_nodes(self, kind, content):
@@ -748,6 +740,7 @@ class Cpp:
         return invokes
 
     def export(self):
+        class_simple_names = set()
 
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
         print("[x/x] Adding namespaces")
@@ -794,13 +787,36 @@ class Cpp:
 
         print("[x/x] Adding classes")
         classes = containment_dict.get("classes")
-        classes = m3_utils.parse_M3_function_Definitions(
+        if self.verbose:
+            print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
+
+        classes, unlocated_classes = m3_utils.parse_M3_function_Definitions(
             self.parsed, classes
         )  # get class locations
+
+        if self.verbose:
+            print(f"[VERBOSE] Succesfully found the physical locations for {len(classes)} classes in 'functionDefinitions'.")
+            print(f"[VERBOSE] Did not find the physical locations of {len(unlocated_classes)} classes in 'functionDefinitions'.")
+        
+        if len(unlocated_classes) > 0:
+            print(f"[VERBOSE] Searching for physical locations of unlocated classes in 'declarations'.")
+            located_classes, still_unlocated_classes = m3_utils.parse_M3_declarations(self.parsed, unlocated_classes)
+
+        if self.verbose:
+            if len(still_unlocated_classes) > 0:
+                print(f"[VERBOSE] Succesfully found the physical locations for {len(located_classes)} classes in 'declarations'.")
+                print(f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_classes)} classes in 'declarations'.")
+            else:
+                print(f"[VERBOSE] Succesfully found the physical locations of all unlocated classes in 'declarations'.")
+        
+        classes = classes | located_classes
+
         classes = m3_utils.parse_M3_extends(
             self.parsed, classes
         )  # get class extentions
         for c in classes.items():
+            class_simple_names.add(c[0])
+
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
                 self.add_edges("specializes", c)
@@ -848,9 +864,35 @@ class Cpp:
 
         print("[x/x] Adding methods")
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
-        methods = declaredType_dicts.get("methods").items()
-        for m in methods:
+        methods = declaredType_dicts.get("methods")
+        methods, unlocated_methods = m3_utils.parse_M3_function_Definitions(self.parsed, methods)  # get method locations
+
+        if self.verbose:
+            print(f"[VERBOSE] Succesfully found the physical locations for {len(methods)} methods in 'functionDefinitions'.")
+            print(f"[VERBOSE] Did not find the physical locations of {len(unlocated_methods)} methods in 'functionDefinitions'.")
+        
+        if len(unlocated_methods) > 0:
+            print(f"[VERBOSE] Searching for physical locations of unlocated methods in 'declarations'.")
+            located_methods, still_unlocated_methods = m3_utils.parse_M3_declarations(self.parsed, unlocated_methods)
+
+        if self.verbose:
+            if len(still_unlocated_methods) > 0:
+                print(f"[VERBOSE] Succesfully found the physical locations for {len(located_methods)} methods in 'declarations'.")
+                print(f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_methods)} methods in 'declarations'.")
+            else:
+                print(f"[VERBOSE] Succesfully found the physical locations of all unlocated methods in 'declarations'.")
+        
+        methods = methods | located_methods
+
+        for m in methods.items():
             self.add_nodes("method", m)
+
+            if m[1].get("class") in class_simple_names:
+                self.add_edges("hasScript", m)
+            
+
+            self.add_edges("returnType", m)
+            # self.add_edges("contains", m)
         # methods = self.get_methods()
         # for m in methods.items():
         #     self.add_nodes("method", m)

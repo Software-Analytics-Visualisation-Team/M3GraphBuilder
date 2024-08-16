@@ -86,7 +86,7 @@ def main():
             print(f"Model successfully loaded. Building graph:")
 
             converter = Cpp
-            cpp_converter = converter(graph_path, parsed_json, None)
+            cpp_converter = converter(graph_path, parsed_json, True, None)
 
             cpp_converter.export()
             print(f"[DONE] Graph {graph_name} successfully built in {graph_path}")
