@@ -31,7 +31,7 @@ class Cpp:
                 properties = {"weight": 1}
                 target = content[0]
                 labels = [kind]
-               
+
             case "hasParameter":
                 for parameter in content[1]["parameters"]:
                     if parameter is not None and parameter != "":
@@ -68,11 +68,11 @@ class Cpp:
 
             case "returnType":
                 # if content[0] is not None and content[1]["returnType"] is not None:
-                    edge_id = hash(content[0]) + hash(content[1]["returnType"])
-                    source = content[0]
-                    properties = {"weight": 1}
-                    target = content[1]["returnType"]
-                    labels = [kind]
+                edge_id = hash(content[0]) + hash(content[1]["returnType"])
+                source = content[0]
+                properties = {"weight": 1}
+                target = content[1]["returnType"]
+                labels = [kind]
 
             case "specializes":
                 edge_id = hash(content[0]) + hash(content[1]["extends"])
@@ -161,7 +161,7 @@ class Cpp:
                     else:
                         try:
                             if content[1].get("location") is not None:
-                                
+
                                 edge_id = (
                                     hash(content[1]["class"])
                                     + hash(content[0])
@@ -172,7 +172,9 @@ class Cpp:
                                 target = content[0]
                                 labels = ["contains"]
                         except:
-                            print(f"Failed adding contains relationship between {source} and {target}")
+                            print(
+                                f"Failed adding contains relationship between {source} and {target}"
+                            )
                             print("Trying backup.")
                             source = next(
                                 item
@@ -180,7 +182,7 @@ class Cpp:
                                 if item["data"]["target"] == content[1]["class"]
                                 and "contains" in item["data"]["labels"]
                             )
-                            
+
                             if source is not None:
                                 edge_id = (
                                     hash(content[1]["class"])
@@ -214,7 +216,7 @@ class Cpp:
                             }
                         }
                     )
-        
+
         if edge_id and source and properties and target and labels:
             self.append_edge(edge_id, source, properties, target, labels)
 
@@ -226,20 +228,20 @@ class Cpp:
         except Exception as e:
             print(f"Problem adding {kind} node relationship for ", id)
             print(e)
-    
+
     def append_edge(self, edge_id, source, properties, target, labels):
         try:
             self.lpg["elements"]["edges"].append(
-                            {
-                                "data": {
-                                    "id": edge_id,
-                                    "source": source,
-                                    "properties": properties,
-                                    "target": target,
-                                    "labels": labels,
-                                }
-                            }
-                        )
+                {
+                    "data": {
+                        "id": edge_id,
+                        "source": source,
+                        "properties": properties,
+                        "target": target,
+                        "labels": labels,
+                    }
+                }
+            )
         except Exception as e:
             print(f"Problem adding edge with id: {edge_id} to the graph")
             print(e)
@@ -666,49 +668,61 @@ class Cpp:
     #     return location
     #####
 
-    #####
-    # def get_classes(self):
-    #     data = self.parsed["containment"]
-    #     classes = {}
-    #     problem_classes = {}
-    #     for element in data:
-    #         if self.is_rascal_problem(element[0]):
-    #             problem = self.parse_problem(element[0])
-    #             problem_classes[problem["id"]] = problem
+    def add_classes(self, classes):
+        print("Adding classes")
+        class_simple_names = set()
 
-    #         if re.match("cpp\\+class", element[0]):
-    #             c = {}
-    #             if re.match("cpp\\+constructor", element[1]):
-    #                 c["className"] = re.split(
-    #                     "\\(", re.sub("cpp\\+constructor:\\/+.+\\/", "", element[1])
-    #                 )[0]
-    #             else:
-    #                 c["className"] = re.split(
-    #                     "\\(", re.sub("cpp\\+class:\\/+.+\\/", "", element[0])
-    #                 )[0]
+        if self.verbose:
+            print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
 
-    #             extends = self.parsed["extends"]
-    #             c["extends"] = None
+        classes, unlocated_classes = m3_utils.parse_M3_function_Definitions(
+            self.parsed, classes
+        )  # get class locations
 
-    #             for el in extends:
-    #                 if self.is_rascal_problem(el[0]):
-    #                     problem = self.parse_problem(el[0])
-    #                     problem_classes[problem["id"]] = problem
+        if self.verbose:
+            print(
+                f"[VERBOSE] Succesfully found the physical locations for {len(classes)} classes in 'functionDefinitions'."
+            )
+            print(
+                f"[VERBOSE] Did not find the physical locations of {len(unlocated_classes)} classes in 'functionDefinitions'."
+            )
 
-    #                 if el[1] == element[0]:
+        if len(unlocated_classes) > 0:
+            print(
+                f"[VERBOSE] Searching for physical locations of unlocated classes in 'declarations'."
+            )
+            located_classes, still_unlocated_classes = m3_utils.parse_M3_declarations(
+                self.parsed, unlocated_classes
+            )
 
-    #                     if self.is_rascal_problem(el[0]):
-    #                         problem = self.parse_problem(el[0])
-    #                         c["extends"] = problem["id"]
-    #                     else:
-    #                         parsed_info = re.split("/", re.sub("cpp\\+class:\\/+", "", el[0]))
-    #                         c["extends"] = parsed_info[len(parsed_info) - 1]
-    #                     break
-    #             c["location"] = self.get_classes_location(c["className"])
-    #             id = c["className"]
-    #             classes[id] = c
-    #     return classes, problem_classes
-    #####
+        if self.verbose:
+            if len(still_unlocated_classes) > 0:
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations for {len(located_classes)} classes in 'declarations'."
+                )
+                print(
+                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_classes)} classes in 'declarations'."
+                )
+            else:
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations of all unlocated classes in 'declarations'."
+                )
+
+        classes = classes | located_classes
+
+        classes = m3_utils.parse_M3_extends(
+            self.parsed, classes
+        )  # get class extentions
+        for c in classes.items():
+            class_simple_names.add(c[0])
+
+            self.add_nodes("class", c)
+            if c[1].get("extends") is not None:
+                self.add_edges("specializes", c)
+            self.add_edges("contains", c)
+        print(f"Successfully added {len(classes)} classes to the graph.")
+
+        return class_simple_names
 
     def get_invokes(self, operations):
         data = self.parsed["callGraph"]
@@ -740,8 +754,6 @@ class Cpp:
         return invokes
 
     def export(self):
-        class_simple_names = set()
-
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
         print("[x/x] Adding namespaces")
         namespaces = containment_dict.get("namespaces").items()
@@ -785,43 +797,7 @@ class Cpp:
         #     self.add_edges("contains", func)
         # print(f"[x/x] Successfully added {len(functions)} functions to the graph.")
 
-        print("[x/x] Adding classes")
-        classes = containment_dict.get("classes")
-        if self.verbose:
-            print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
-
-        classes, unlocated_classes = m3_utils.parse_M3_function_Definitions(
-            self.parsed, classes
-        )  # get class locations
-
-        if self.verbose:
-            print(f"[VERBOSE] Succesfully found the physical locations for {len(classes)} classes in 'functionDefinitions'.")
-            print(f"[VERBOSE] Did not find the physical locations of {len(unlocated_classes)} classes in 'functionDefinitions'.")
-        
-        if len(unlocated_classes) > 0:
-            print(f"[VERBOSE] Searching for physical locations of unlocated classes in 'declarations'.")
-            located_classes, still_unlocated_classes = m3_utils.parse_M3_declarations(self.parsed, unlocated_classes)
-
-        if self.verbose:
-            if len(still_unlocated_classes) > 0:
-                print(f"[VERBOSE] Succesfully found the physical locations for {len(located_classes)} classes in 'declarations'.")
-                print(f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_classes)} classes in 'declarations'.")
-            else:
-                print(f"[VERBOSE] Succesfully found the physical locations of all unlocated classes in 'declarations'.")
-        
-        classes = classes | located_classes
-
-        classes = m3_utils.parse_M3_extends(
-            self.parsed, classes
-        )  # get class extentions
-        for c in classes.items():
-            class_simple_names.add(c[0])
-
-            self.add_nodes("class", c)
-            if c[1].get("extends") is not None:
-                self.add_edges("specializes", c)
-            self.add_edges("contains", c)
-        print(f"[x/x] Successfully added {len(classes)} classes to the graph.")
+        class_simple_names = self.add_classes(containment_dict.get("classes"))
 
         print("[x/x] Adding templates")
         templates = containment_dict.get("templates").items()
@@ -865,23 +841,39 @@ class Cpp:
         print("[x/x] Adding methods")
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         methods = declaredType_dicts.get("methods")
-        methods, unlocated_methods = m3_utils.parse_M3_function_Definitions(self.parsed, methods)  # get method locations
+        methods, unlocated_methods = m3_utils.parse_M3_function_Definitions(
+            self.parsed, methods
+        )  # get method locations
 
         if self.verbose:
-            print(f"[VERBOSE] Succesfully found the physical locations for {len(methods)} methods in 'functionDefinitions'.")
-            print(f"[VERBOSE] Did not find the physical locations of {len(unlocated_methods)} methods in 'functionDefinitions'.")
-        
+            print(
+                f"[VERBOSE] Succesfully found the physical locations for {len(methods)} methods in 'functionDefinitions'."
+            )
+            print(
+                f"[VERBOSE] Did not find the physical locations of {len(unlocated_methods)} methods in 'functionDefinitions'."
+            )
+
         if len(unlocated_methods) > 0:
-            print(f"[VERBOSE] Searching for physical locations of unlocated methods in 'declarations'.")
-            located_methods, still_unlocated_methods = m3_utils.parse_M3_declarations(self.parsed, unlocated_methods)
+            print(
+                f"[VERBOSE] Searching for physical locations of unlocated methods in 'declarations'."
+            )
+            located_methods, still_unlocated_methods = m3_utils.parse_M3_declarations(
+                self.parsed, unlocated_methods
+            )
 
         if self.verbose:
             if len(still_unlocated_methods) > 0:
-                print(f"[VERBOSE] Succesfully found the physical locations for {len(located_methods)} methods in 'declarations'.")
-                print(f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_methods)} methods in 'declarations'.")
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations for {len(located_methods)} methods in 'declarations'."
+                )
+                print(
+                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_methods)} methods in 'declarations'."
+                )
             else:
-                print(f"[VERBOSE] Succesfully found the physical locations of all unlocated methods in 'declarations'.")
-        
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations of all unlocated methods in 'declarations'."
+                )
+
         methods = methods | located_methods
 
         for m in methods.items():
@@ -889,7 +881,6 @@ class Cpp:
 
             if m[1].get("class") in class_simple_names:
                 self.add_edges("hasScript", m)
-            
 
             self.add_edges("returnType", m)
             # self.add_edges("contains", m)
