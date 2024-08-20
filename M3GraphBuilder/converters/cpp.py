@@ -406,59 +406,6 @@ class Cpp:
             files[files.index(f)] = re.sub("\\/.+\\/", "", f)
         return files
 
-    #####
-    # def get_function_location(self, function):
-    #     data = self.parsed["functionDefinitions"]
-    #     location = {}
-    #     for element in data:
-    #         if re.match("cpp\\+function:", element[0]) and function in element[0]:
-    #             location["file"], location["position"] = re.split("\\(", element[1])
-    #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-    #             location["position"] = "(" + location["position"]
-    #             break
-
-    #     # if len(location) == 0:
-    #     #     data = self.parsed["declarations"]
-
-    #     #     for element in data:
-    #     #         if re.match("cpp\\+function:", element[0]) and function in element[0]:
-    #     #             location["file"], location["position"] = re.split("\\(", element[1])
-    #     #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-    #     #             location["position"] = "(" + location["position"]
-    #     #             break
-
-    #     return location
-    #####
-
-    #####
-    # def get_method_location(self, className, method):
-    #     data = self.parsed["functionDefinitions"]
-    #     location = {}
-
-    #     for element in data:
-    #         if re.match(
-    #             "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
-    #         ):
-    #             location["file"], location["position"] = re.split("\\(", element[1])
-    #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-    #             location["position"] = "(" + location["position"]
-    #             break
-
-    #     # if location is {}:
-    #     #     data = self.parsed["declarations"]
-
-    #     #     for element in data:
-    #     #         if re.match(
-    #     #             "cpp\\+method:\\/\\/\\/{}\\/{}".format(className, method), element[0]
-    #     #         ):
-    #     #             location["file"], location["position"] = re.split("\\(", element[1])
-    #     #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-    #     #             location["position"] = "(" + location["position"]
-    #     #             break
-
-    #     return location
-    #####
-
     def get_functions(self):
         functions = {}
         problem_declarations = {}
@@ -654,19 +601,6 @@ class Cpp:
                 parameters.append(parameter)
         parameters = sorted(parameters, key=lambda d: d["location"])
         return parameters
-
-    ####
-    # def get_classes_location(self, c):
-    #     data = self.parsed["functionDefinitions"]
-    #     location = {}
-    #     for element in data:
-    #         if re.match("cpp\\+constructor:\\/+\\/" + c, element[0]) and c in element[0]:
-    #             location["file"], location["position"] = re.split("\\(", element[1])
-    #             location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
-    #             location["position"] = "(" + location["position"]
-    #             break
-    #     return location
-    #####
 
     def add_namespaces(self, namespaces):
         print("Adding namespaces")
@@ -934,74 +868,3 @@ class Cpp:
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))
-
-
-#####
-# def export(self):
-
-#         print("Adding files")
-#         files = self.get_files()
-#         for file in files:
-#             self.add_nodes("file", file)
-
-#         print(f"Successfully added {len(files)} files to the graph.")
-
-#         print("Adding declarations")
-#         functions, problem_declarations = self.get_functions()
-#         # for primitve in self.primitives:
-#         #     self.add_nodes("Primitive", primitve)
-#         # for problem in problem_declarations.items():
-#         #     self.add_nodes("problem", problem)
-#         # print(f"Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
-
-#         for func in functions.items():
-#             self.add_nodes("function", func)
-#             # if func[1]["parameters"]:
-#             #     self.add_nodes("parameter", func)
-#             #     self.add_edges("hasParameter", func)
-#             # if func[1]["variables"]:
-#             #     self.add_nodes("variable", func)
-#             #     self.add_edges("hasVariable", func)
-#             # self.add_edges("returnType", func)
-#             self.add_edges("contains", func)
-#         print(f"Successfully added {len(functions)} functions to the graph.")
-
-#         classes, problem_classes = self.get_classes()
-
-#         print("Adding classes")
-#         for c in classes.items():
-#             self.add_nodes("class", c)
-#             if c[1]["extends"] is not None:
-#                 self.add_edges("specializes", c)
-#             self.add_edges("contains", c)
-#         print(f"Successfully added {len(classes)} classes to the graph.")
-
-#         print("Adding Rascal problem classes")
-#         for pc in problem_classes.items():
-#             self.add_nodes("problem", pc)
-#         print(f"Successfully added {len(problem_classes)} Rascal problem classes to the graph.")
-
-#         print("Adding methods")
-#         methods = self.get_methods()
-#         for m in methods.items():
-#             self.add_nodes("method", m)
-#             self.add_edges("hasScript", m)
-#             # self.add_edges("returnType", m)
-#             # if m[1]["parameters"]:
-#             #     self.add_nodes("parameter", m)
-#             #     self.add_edges("hasParameter", m)
-#             # if m[1]["variables"]:
-#             #     self.add_nodes("variable", m)
-#             #     self.add_edges("hasVariable", m)
-#         print(f"Successfully added {len(methods)} methods to the graph.")
-
-#         print("Adding invokes")
-#         operations = deepcopy(methods)
-#         operations.update(functions)
-#         for invoke in self.get_invokes(operations):
-#             self.add_edges("invokes", invoke)
-#         print(f"Successfully added {len(operations)} invokes to the graph.")
-
-#         with open(self.path, "w") as graph_file:
-#             graph_file.write(json.dumps(self.lpg))
-#####
