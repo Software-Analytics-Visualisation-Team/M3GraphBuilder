@@ -5,6 +5,7 @@ import M3GraphBuilder.converters.constants as constants
 def parse_M3_function_Definitions(m3, fragments):
     function_Definitions_data = m3["functionDefinitions"]
     unlocated_fragments = {}
+    files_containing_fragments = set()
     for rel in function_Definitions_data:
         function_Definitions_fragment = parse_M3_loc_statement(rel[0])
         for key in fragments.keys():
@@ -14,14 +15,24 @@ def parse_M3_function_Definitions(m3, fragments):
                 fragments[key]["location"] = get_fragment_declaration_location(rel[1])
     
     for fragment in fragments.items():
-        if fragment[1].get("location") is None:
+        location = fragment[1].get("location")
+        if location is None:
             unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+        else:
+            files_containing_fragments.add(location["file"])
 
-    return fragments, unlocated_fragments
+    result = {
+        "fragments_dict": fragments,
+        "unlocated_fragments_dict": unlocated_fragments,
+        "files_set": files_containing_fragments,
+    }
+
+    return result
 
 def parse_M3_declarations(m3, fragments):
     declarations_data = m3["declarations"]
     unlocated_fragments = {}
+    files_containing_fragments = set()
     for rel in declarations_data:
         declarations_fragment = parse_M3_loc_statement(rel[0])
         for key in fragments.keys():
@@ -31,10 +42,19 @@ def parse_M3_declarations(m3, fragments):
                 fragments[key]["location"] = get_fragment_declaration_location(rel[1])
     
     for fragment in fragments.items():
-        if fragment[1].get("location") is None:
+        location = fragment[1].get("location")
+        if location is None:
             unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+        else:
+            files_containing_fragments.add(location["file"])
 
-    return fragments, unlocated_fragments
+    result = {
+        "fragments_dict": fragments,
+        "unlocated_fragments_dict": unlocated_fragments,
+        "files_set": files_containing_fragments,
+    }
+
+    return result
 
 
 

@@ -137,6 +137,7 @@ class Cpp:
 
             case "contains":
                 try:
+                    # Namespace and translation unit relationships
                     if (
                         content[1].get("fragmentType")
                         is constants.M3_CPP_TRANSLATION_UNIT_TYPE
@@ -158,19 +159,22 @@ class Cpp:
                                     }
                                 }
                             )
-                    else:
+                    # Method relationships
+                    elif (
+                        content[1].get("fragmentType")
+                        is constants.M3_CPP_METHOD_TYPE
+                        and content[1].get("location") is not None
+                    ):
                         try:
-                            if content[1].get("location") is not None:
-
-                                edge_id = (
-                                    hash(content[1]["class"])
-                                    + hash(content[0])
-                                    + hash(content[1]["location"].get("file"))
-                                )
-                                source = content[1]["location"].get("file")
-                                properties = {"weight": 1}
-                                target = content[0]
-                                labels = ["contains"]
+                            edge_id = (
+                                hash(content[1]["class"])
+                                + hash(content[0])
+                                + hash(content[1]["location"].get("file"))
+                            )
+                            source = content[1]["location"].get("file")
+                            properties = {"weight": 1}
+                            target = content[0]
+                            labels = ["contains"]
                         except:
                             print(
                                 f"Failed adding contains relationship between {source} and {target}"
@@ -196,10 +200,15 @@ class Cpp:
                             else:
                                 print(f"Failed to add a contains edge for {content}")
                                 return
-
+                    # Classes relationships
+                    elif content[1].get("location") is not None:
+                        edge_id = hash(content[0]) + hash(content[1]["location"]["file"])
+                        source = content[1]["location"].get("file")
+                        properties = {"weight": 1}
+                        target = content[0]
+                        labels = ["contains"]
                 except Exception as e:
                     print("Problem adding 'contains' relationship for ", content)
-                    print("Exception message:", e)
             case "type":
                 content = list(zip(content.keys(), content.values()))[0]
                 id = hash(content[0]) - hash(content[1]["name"])
@@ -404,7 +413,7 @@ class Cpp:
         files = list(dict.fromkeys(files))
         for f in files:
             files[files.index(f)] = re.sub("\\/.+\\/", "", f)
-        return files
+        return set(files)
 
     def get_functions(self):
         functions = {}
@@ -623,10 +632,9 @@ class Cpp:
             f"Successfully added {len(translation_units)} translation units to the graph."
         )
 
-    def add_files(self):
+    def add_files(self, files):
         print("Adding files")
 
-        files = self.get_files()
         for file in files:
             self.add_nodes("file", file)
 
@@ -634,14 +642,18 @@ class Cpp:
 
     def add_classes(self, classes):
         print("Adding classes")
-        class_simple_names = set()
+        class_names = set()
 
         if self.verbose:
             print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
 
-        classes, unlocated_classes = m3_utils.parse_M3_function_Definitions(
+        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
             self.parsed, classes
         )  # get class locations
+
+        classes = function_Definitions_dict.get("fragments_dict")
+        unlocated_classes = function_Definitions_dict.get("unlocated_fragments_dict")
+        files_in_function_Definitions = function_Definitions_dict.get("files_set")
 
         if self.verbose:
             print(
@@ -655,9 +667,13 @@ class Cpp:
             print(
                 f"[VERBOSE] Searching for physical locations of unlocated classes in 'declarations'."
             )
-            located_classes, still_unlocated_classes = m3_utils.parse_M3_declarations(
+
+            declarations_dict = m3_utils.parse_M3_declarations(
                 self.parsed, unlocated_classes
             )
+            located_classes = declarations_dict.get("fragments_dict")
+            still_unlocated_classes = declarations_dict.get("unlocated_fragments_dict")
+            files_in_declarations = declarations_dict.get("files_set")
 
         if self.verbose:
             if len(still_unlocated_classes) > 0:
@@ -674,19 +690,31 @@ class Cpp:
 
         classes = classes | located_classes
 
+        files_for_classes = set()
+        if len(files_in_function_Definitions) > 0:
+            files_for_classes.update(files_in_function_Definitions)
+        if len(files_in_declarations) > 0:
+            files_for_classes.update(files_in_declarations)
+
         classes = m3_utils.parse_M3_extends(
             self.parsed, classes
         )  # get class extentions
         for c in classes.items():
-            class_simple_names.add(c[0])
+            class_names.add(c[0])
 
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
                 self.add_edges("specializes", c)
             self.add_edges("contains", c)
+
         print(f"Successfully added {len(classes)} classes to the graph.")
 
-        return class_simple_names
+        result = {
+            "class_names_set": class_names,
+            "files_for_classes_set": files_for_classes
+        }
+
+        return result
 
     def add_templates(self, templates):
         print("Adding templates")
@@ -727,9 +755,12 @@ class Cpp:
     def add_methods(self, methods, class_simple_names):
         print("Adding methods")
 
-        methods, unlocated_methods = m3_utils.parse_M3_function_Definitions(
+        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
             self.parsed, methods
         )  # get method locations
+        methods = function_Definitions_dict.get("fragments_dict")
+        unlocated_methods = function_Definitions_dict.get("unlocated_fragments_dict")
+        files_in_function_Definitions = function_Definitions_dict.get("files_set")
 
         if self.verbose:
             print(
@@ -743,9 +774,13 @@ class Cpp:
             print(
                 f"[VERBOSE] Searching for physical locations of unlocated methods in 'declarations'."
             )
-            located_methods, still_unlocated_methods = m3_utils.parse_M3_declarations(
+
+            declarations_dict = m3_utils.parse_M3_declarations(
                 self.parsed, unlocated_methods
             )
+            located_methods = declarations_dict.get("fragments_dict")
+            still_unlocated_methods = declarations_dict.get("unlocated_fragments_dict")
+            files_in_declarations = declarations_dict.get("files_set")
 
         if self.verbose:
             if len(still_unlocated_methods) > 0:
@@ -762,6 +797,13 @@ class Cpp:
 
         methods = methods | located_methods
 
+
+        files_for_methods = set()
+        if len(files_in_function_Definitions) > 0:
+            files_for_methods.update(files_in_function_Definitions)
+        if len(files_in_declarations) > 0:
+            files_for_methods.update(files_in_declarations)
+
         for m in methods.items():
             self.add_nodes("method", m)
 
@@ -769,7 +811,7 @@ class Cpp:
                 self.add_edges("hasScript", m)
 
             self.add_edges("returnType", m)
-            # self.add_edges("contains", m)
+            self.add_edges("contains", m)
         # methods = self.get_methods()
         # for m in methods.items():
         #     self.add_nodes("method", m)
@@ -782,6 +824,12 @@ class Cpp:
         #     #     self.add_nodes("variable", m)
         #     #     self.add_edges("hasVariable", m)
         print(f"Successfully added {len(methods)} methods to the graph.")
+
+        result = {
+            "files_for_methods_set": files_for_methods
+        }
+
+        return result
 
     def get_invokes(self, operations):
         data = self.parsed["callGraph"]
@@ -813,7 +861,6 @@ class Cpp:
         return invokes
 
     def export(self):
-        self.add_files()
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
         self.add_namespaces(containment_dict.get("namespaces"))
         self.add_translation_units(containment_dict.get("translation_units"))
@@ -844,9 +891,11 @@ class Cpp:
         #     self.add_edges("contains", func)
         # print(f"Successfully added {len(functions)} functions to the graph.")
 
-        class_simple_names = self.add_classes(
+        add_classes_dict = self.add_classes(
             containment_dict.get("classes")
-        )  # collecte classes for method location
+        )  # collect classes for method location
+        class_names = add_classes_dict.get("class_names_set")
+        files_for_classes = add_classes_dict.get("files_for_classes_set")
 
         # print("Adding Rascal problem classes")
         # for pc in problem_classes.items():
@@ -857,7 +906,14 @@ class Cpp:
 
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
 
-        self.add_methods(declaredType_dicts.get("methods"), class_simple_names)
+        add_methods_dict = self.add_methods(declaredType_dicts.get("methods"), class_names)
+        files_for_methods = add_methods_dict.get("files_for_methods_set")
+
+        files = self.get_files()
+        files.update(files_for_classes)
+        files.update(files_for_methods)
+
+        self.add_files(files)
 
         # print("Adding invokes")
         # operations = deepcopy(methods)
