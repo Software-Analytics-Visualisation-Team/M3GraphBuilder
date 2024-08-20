@@ -668,6 +668,36 @@ class Cpp:
     #     return location
     #####
 
+    def add_namespaces(self, namespaces):
+        print("Adding namespaces")
+
+        for n in namespaces.items():
+            self.add_nodes("namespace", n)
+            if n[1].get("contains") is not None:
+                self.add_edges("contains", n)
+
+        print(f"Successfully added {len(namespaces)} namespaces to the graph.")
+
+    def add_translation_units(self, translation_units):
+        print("Adding translation units")
+
+        for tu in translation_units.items():
+            self.add_nodes("translation_unit", tu)
+            self.add_edges("contains", tu)
+
+        print(
+            f"Successfully added {len(translation_units)} translation units to the graph."
+        )
+
+    def add_files(self):
+        print("Adding files")
+
+        files = self.get_files()
+        for file in files:
+            self.add_nodes("file", file)
+
+        print(f"Successfully added {len(files)} files to the graph.")
+
     def add_classes(self, classes):
         print("Adding classes")
         class_simple_names = set()
@@ -724,123 +754,45 @@ class Cpp:
 
         return class_simple_names
 
-    def get_invokes(self, operations):
-        data = self.parsed["callGraph"]
-        invokes = []
-        for operation in operations.items():
-            for element in data:
-                if re.match(".+\\.", operation[0]):
-                    source = operation[0].replace(".", "/")
-                else:
-                    source = operation[0]
-                if len(element) > 1:
-                    if source in element[0]:
-                        invoke = {}
-                        invoke["source"] = operation[0]
-                        try:
-                            target = re.sub("cpp\\+function:\\/+.+\\/", "", element[1])
-                            if re.match("cpp\\+", target):
-                                target = re.sub("cpp\\+method:\\/+", "", element[1])
-                                target = target.replace("/", ".")
-                            target = re.split("\\(", target)[0]
+    def add_templates(self, templates):
+        print("Adding templates")
 
-                            if target in operations.keys():
-                                invoke["target"] = target
-                                invokes.append(invoke)
-                        except:
-                            pass
-                    else:
-                        pass
-        return invokes
-
-    def export(self):
-        containment_dict = m3_utils.parse_M3_containment(self.parsed)
-        print("[x/x] Adding namespaces")
-        namespaces = containment_dict.get("namespaces").items()
-        for n in namespaces:
-            self.add_nodes("namespace", n)
-            if n[1].get("contains") is not None:
-                self.add_edges("contains", n)
-
-        translation_units = containment_dict.get("translation_units").items()
-        for tu in translation_units:
-            self.add_nodes("translation_unit", tu)
-            self.add_edges("contains", tu)
-        print(f"[x/x] Successfully added {len(namespaces)} namespaces to the graph.")
-        print("[x/x] Adding files")
-
-        files = self.get_files()
-        for file in files:
-            self.add_nodes("file", file)
-
-        print(
-            f"[x/x] Successfully added {len(files) + len(translation_units)} files to the graph."
-        )
-
-        # print("[x/x] Adding declarations")
-        # functions, problem_declarations = self.get_functions()
-        # for primitve in self.primitives:
-        #     self.add_nodes("Primitive", primitve)
-        # for problem in problem_declarations.items():
-        #     self.add_nodes("problem", problem)
-        # print(f"[x/x] Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
-
-        # for func in functions.items():
-        #     self.add_nodes("function", func)
-        #     # if func[1]["parameters"]:
-        #     #     self.add_nodes("parameter", func)
-        #     #     self.add_edges("hasParameter", func)
-        #     # if func[1]["variables"]:
-        #     #     self.add_nodes("variable", func)
-        #     #     self.add_edges("hasVariable", func)
-        #     # self.add_edges("returnType", func)
-        #     self.add_edges("contains", func)
-        # print(f"[x/x] Successfully added {len(functions)} functions to the graph.")
-
-        class_simple_names = self.add_classes(containment_dict.get("classes"))
-
-        print("[x/x] Adding templates")
-        templates = containment_dict.get("templates").items()
-        for temp in templates:
+        for temp in templates.items():
             self.add_nodes("template", temp)
-        print(f"[x/x] Successfully added {len(templates)} templates to the graph.")
 
-        print("[x/x] Adding template types")
-        template_types = containment_dict.get("template_types").items()
-        for temp_type in template_types:
+        print(f"Successfully added {len(templates)} templates to the graph.")
+
+    def add_template_types(self, template_types):
+        print("Adding template types")
+
+        for temp_type in template_types.items():
             self.add_nodes("template_type", temp_type)
-        print(
-            f"[x/x] Successfully added {len(template_types)} template types to the graph."
-        )
 
-        print("[x/x] Adding specializations")
-        specializations = containment_dict.get("specializations").items()
-        for spec in specializations:
+        print(f"Successfully added {len(template_types)} template types to the graph.")
+
+    def add_specializations(self, specializations):
+        print("Adding specializations")
+
+        for spec in specializations.items():
             self.add_nodes("specialization", spec)
+
         print(
-            f"[x/x] Successfully added {len(specializations)} specializations to the graph."
+            f"Successfully added {len(specializations)} specializations to the graph."
         )
 
-        print("[x/x] Adding partial specializations")
-        partial_specializations = containment_dict.get(
-            "partial_specializations"
-        ).items()
-        for part_spec in partial_specializations:
+    def add_partial_specializations(self, partial_specializations):
+        print("Adding partial specializations")
+
+        for part_spec in partial_specializations.items():
             self.add_nodes("partial_specialization", part_spec)
+
         print(
-            f"[x/x] Successfully added {len(partial_specializations)} partial specializations to the graph."
+            f"Successfully added {len(partial_specializations)} partial specializations to the graph."
         )
 
-        # print("[x/x] Adding Rascal problem classes")
-        # for pc in problem_classes.items():
-        #     self.add_nodes("problem", pc)
-        # print(
-        #     f"[x/x] Successfully added {len(problem_classes)} Rascal problem classes to the graph."
-        # )
+    def add_methods(self, methods, class_simple_names):
+        print("Adding methods")
 
-        print("[x/x] Adding methods")
-        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
-        methods = declaredType_dicts.get("methods")
         methods, unlocated_methods = m3_utils.parse_M3_function_Definitions(
             self.parsed, methods
         )  # get method locations
@@ -895,14 +847,90 @@ class Cpp:
         #     # if m[1]["variables"]:
         #     #     self.add_nodes("variable", m)
         #     #     self.add_edges("hasVariable", m)
-        print(f"[x/x] Successfully added {len(methods)} methods to the graph.")
+        print(f"Successfully added {len(methods)} methods to the graph.")
 
-        # print("[x/x] Adding invokes")
+    def get_invokes(self, operations):
+        data = self.parsed["callGraph"]
+        invokes = []
+        for operation in operations.items():
+            for element in data:
+                if re.match(".+\\.", operation[0]):
+                    source = operation[0].replace(".", "/")
+                else:
+                    source = operation[0]
+                if len(element) > 1:
+                    if source in element[0]:
+                        invoke = {}
+                        invoke["source"] = operation[0]
+                        try:
+                            target = re.sub("cpp\\+function:\\/+.+\\/", "", element[1])
+                            if re.match("cpp\\+", target):
+                                target = re.sub("cpp\\+method:\\/+", "", element[1])
+                                target = target.replace("/", ".")
+                            target = re.split("\\(", target)[0]
+
+                            if target in operations.keys():
+                                invoke["target"] = target
+                                invokes.append(invoke)
+                        except:
+                            pass
+                    else:
+                        pass
+        return invokes
+
+    def export(self):
+        self.add_files()
+        containment_dict = m3_utils.parse_M3_containment(self.parsed)
+        self.add_namespaces(containment_dict.get("namespaces"))
+        self.add_translation_units(containment_dict.get("translation_units"))
+        self.add_templates(containment_dict.get("templates"))
+        self.add_template_types(containment_dict.get("template_types"))
+        self.add_specializations(containment_dict.get("specializations"))
+        self.add_partial_specializations(
+            containment_dict.get("partial_specializations")
+        )
+
+        # print("Adding declarations")
+        # functions, problem_declarations = self.get_functions()
+        # for primitve in self.primitives:
+        #     self.add_nodes("Primitive", primitve)
+        # for problem in problem_declarations.items():
+        #     self.add_nodes("problem", problem)
+        # print(f"Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
+
+        # for func in functions.items():
+        #     self.add_nodes("function", func)
+        #     # if func[1]["parameters"]:
+        #     #     self.add_nodes("parameter", func)
+        #     #     self.add_edges("hasParameter", func)
+        #     # if func[1]["variables"]:
+        #     #     self.add_nodes("variable", func)
+        #     #     self.add_edges("hasVariable", func)
+        #     # self.add_edges("returnType", func)
+        #     self.add_edges("contains", func)
+        # print(f"Successfully added {len(functions)} functions to the graph.")
+
+        class_simple_names = self.add_classes(
+            containment_dict.get("classes")
+        )  # collecte classes for method location
+
+        # print("Adding Rascal problem classes")
+        # for pc in problem_classes.items():
+        #     self.add_nodes("problem", pc)
+        # print(
+        #     f"Successfully added {len(problem_classes)} Rascal problem classes to the graph."
+        # )
+
+        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
+
+        self.add_methods(declaredType_dicts.get("methods"), class_simple_names)
+
+        # print("Adding invokes")
         # operations = deepcopy(methods)
         # operations.update(functions)
         # for invoke in self.get_invokes(operations):
         #     self.add_edges("invokes", invoke)
-        # print(f"[x/x] Successfully added {len(operations)} invokes to the graph.")
+        # print(f"Successfully added {len(operations)} invokes to the graph.")
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))
@@ -911,20 +939,20 @@ class Cpp:
 #####
 # def export(self):
 
-#         print("[x/x] Adding files")
+#         print("Adding files")
 #         files = self.get_files()
 #         for file in files:
 #             self.add_nodes("file", file)
 
-#         print(f"[x/x] Successfully added {len(files)} files to the graph.")
+#         print(f"Successfully added {len(files)} files to the graph.")
 
-#         print("[x/x] Adding declarations")
+#         print("Adding declarations")
 #         functions, problem_declarations = self.get_functions()
 #         # for primitve in self.primitives:
 #         #     self.add_nodes("Primitive", primitve)
 #         # for problem in problem_declarations.items():
 #         #     self.add_nodes("problem", problem)
-#         # print(f"[x/x] Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
+#         # print(f"Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
 
 #         for func in functions.items():
 #             self.add_nodes("function", func)
@@ -936,24 +964,24 @@ class Cpp:
 #             #     self.add_edges("hasVariable", func)
 #             # self.add_edges("returnType", func)
 #             self.add_edges("contains", func)
-#         print(f"[x/x] Successfully added {len(functions)} functions to the graph.")
+#         print(f"Successfully added {len(functions)} functions to the graph.")
 
 #         classes, problem_classes = self.get_classes()
 
-#         print("[x/x] Adding classes")
+#         print("Adding classes")
 #         for c in classes.items():
 #             self.add_nodes("class", c)
 #             if c[1]["extends"] is not None:
 #                 self.add_edges("specializes", c)
 #             self.add_edges("contains", c)
-#         print(f"[x/x] Successfully added {len(classes)} classes to the graph.")
+#         print(f"Successfully added {len(classes)} classes to the graph.")
 
-#         print("[x/x] Adding Rascal problem classes")
+#         print("Adding Rascal problem classes")
 #         for pc in problem_classes.items():
 #             self.add_nodes("problem", pc)
-#         print(f"[x/x] Successfully added {len(problem_classes)} Rascal problem classes to the graph.")
+#         print(f"Successfully added {len(problem_classes)} Rascal problem classes to the graph.")
 
-#         print("[x/x] Adding methods")
+#         print("Adding methods")
 #         methods = self.get_methods()
 #         for m in methods.items():
 #             self.add_nodes("method", m)
@@ -965,14 +993,14 @@ class Cpp:
 #             # if m[1]["variables"]:
 #             #     self.add_nodes("variable", m)
 #             #     self.add_edges("hasVariable", m)
-#         print(f"[x/x] Successfully added {len(methods)} methods to the graph.")
+#         print(f"Successfully added {len(methods)} methods to the graph.")
 
-#         print("[x/x] Adding invokes")
+#         print("Adding invokes")
 #         operations = deepcopy(methods)
 #         operations.update(functions)
 #         for invoke in self.get_invokes(operations):
 #             self.add_edges("invokes", invoke)
-#         print(f"[x/x] Successfully added {len(operations)} invokes to the graph.")
+#         print(f"Successfully added {len(operations)} invokes to the graph.")
 
 #         with open(self.path, "w") as graph_file:
 #             graph_file.write(json.dumps(self.lpg))
