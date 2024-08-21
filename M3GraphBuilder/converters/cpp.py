@@ -236,7 +236,7 @@ class Cpp:
                 {"data": {"id": node_id, "properties": properties, "labels": labels}}
             )
         except Exception as e:
-            print(f"Problem adding {kind} node relationship for ", id)
+            print(f"Problem adding {labels} node relationship for ", node_id)
             print(e)
 
     def append_edge(self, edge_id, source, properties, target, labels):
@@ -451,19 +451,19 @@ class Cpp:
                 functions[function["functionName"]] = function
         return functions, problem_declarations
 
-    def get_variables(self, operator):
-        variables = []
-        data = self.parsed["declaredType"]
-        operator_name = "cpp+variable:" + re.split("cpp\\+.+:", operator)[1]
-        for element in data:
-            if re.match("cpp\\+variable:", element[0]) and operator_name in element[0]:
-                variable = {}
-                variable["name"] = re.sub("cpp\\+variable:.+/", "", element[0])
-                variable["type"] = self.get_type(
-                    element[1], self.get_type_field(element[1])
-                )
-                variables.append(variable)
-        return variables
+    # def get_variables(self, operator):
+    #     variables = []
+    #     data = self.parsed["declaredType"]
+    #     operator_name = "cpp+variable:" + re.split("cpp\\+.+:", operator)[1]
+    #     for element in data:
+    #         if re.match("cpp\\+variable:", element[0]) and operator_name in element[0]:
+    #             variable = {}
+    #             variable["name"] = re.sub("cpp\\+variable:.+/", "", element[0])
+    #             variable["type"] = self.get_type(
+    #                 element[1], self.get_type_field(element[1])
+    #             )
+    #             variables.append(variable)
+    #     return variables
 
     # def get_methods(self):
     #     data = self.parsed["declaredType"]
