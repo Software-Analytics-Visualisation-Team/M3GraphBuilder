@@ -366,7 +366,7 @@ def get_fragment_with_contains(fragment, contained_fragment_name):
     return fragment
 
 
-def get_fragment_type_key(field):
+def get_fragment_type_key(fragment_field):
     try:
         if "baseType" in fragment_field.keys():
             return "baseType"
@@ -374,7 +374,7 @@ def get_fragment_type_key(field):
             return "decl"
         if "type" in fragment_field.keys():
             return "type"
-        if "msg" in elemefragment_fieldnt.keys():
+        if "msg" in fragment_field.keys():
             return "msg"
         if "templateArguments" in fragment_field.keys():
             return None
