@@ -88,6 +88,10 @@ def parse_M3_declaredType(m3):
                 )
                 methods_dict[fragment["simpleName"]] = fragment
             case constants.M3_CPP_FUNCTION_TYPE:
+                fragment_info = rel[1]["returnType"]
+                fragment["returnType"] = get_fragment_type(
+                    fragment_info, get_fragment_type_key(fragment_info)
+                )
                 functions_dict[fragment["simpleName"]] = fragment
             case constants.M3_CPP_VARIABLE_TYPE:
                 fragment["type"] = get_fragment_type(

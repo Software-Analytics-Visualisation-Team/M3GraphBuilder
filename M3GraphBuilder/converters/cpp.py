@@ -288,10 +288,10 @@ class Cpp:
             case "function":
                 node_id = content[0]
                 properties = {
-                    "simpleName": content[1]["functionName"],
+                    "simpleName": content[1]["simpleName"],
                     "kind": kind,
                     # "vulnerabilities": vulnerabilities,
-                    "location": content[1]["location"],
+                    #"location": content[1]["location"],
                 }
                 labels = [
                     "Operation",
@@ -819,6 +819,14 @@ class Cpp:
 
         return result
 
+    def add_functions(self, functions):
+        print("Adding methods")
+
+        for f in functions.items():
+            self.add_nodes("function", f)
+
+        print(f"Successfully added {len(functions)} functions to the graph.")
+
     def get_invokes(self, operations):
         data = self.parsed["callGraph"]
         invokes = []
@@ -898,6 +906,8 @@ class Cpp:
             declaredType_dicts.get("methods"), class_names
         )
         files_for_methods = add_methods_dict.get("files_for_methods_set")
+
+        self.add_functions(declaredType_dicts.get("functions"))
 
         files_set = m3_utils.parse_M3_provides(self.parsed)
         files_set.update(files_for_classes)
