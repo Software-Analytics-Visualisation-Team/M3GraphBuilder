@@ -161,8 +161,7 @@ class Cpp:
                             )
                     # Method relationships
                     elif (
-                        content[1].get("fragmentType")
-                        is constants.M3_CPP_METHOD_TYPE
+                        content[1].get("fragmentType") is constants.M3_CPP_METHOD_TYPE
                         and content[1].get("location") is not None
                     ):
                         try:
@@ -202,7 +201,9 @@ class Cpp:
                                 return
                     # Classes relationships
                     elif content[1].get("location") is not None:
-                        edge_id = hash(content[0]) + hash(content[1]["location"]["file"])
+                        edge_id = hash(content[0]) + hash(
+                            content[1]["location"]["file"]
+                        )
                         source = content[1]["location"].get("file")
                         properties = {"weight": 1}
                         target = content[0]
@@ -404,16 +405,6 @@ class Cpp:
                             self.add_edges("type", {content[0]: variable})
 
         self.append_node(node_id, properties, labels)
-
-    def get_files(self):
-        data = self.parsed["provides"]
-        files = []
-        for f in data:
-            files.append(f[0])
-        files = list(dict.fromkeys(files))
-        for f in files:
-            files[files.index(f)] = re.sub("\\/.+\\/", "", f)
-        return set(files)
 
     def get_functions(self):
         functions = {}
@@ -711,7 +702,7 @@ class Cpp:
 
         result = {
             "class_names_set": class_names,
-            "files_for_classes_set": files_for_classes
+            "files_for_classes_set": files_for_classes,
         }
 
         return result
@@ -797,7 +788,6 @@ class Cpp:
 
         methods = methods | located_methods
 
-
         files_for_methods = set()
         if len(files_in_function_Definitions) > 0:
             files_for_methods.update(files_in_function_Definitions)
@@ -825,9 +815,7 @@ class Cpp:
         #     #     self.add_edges("hasVariable", m)
         print(f"Successfully added {len(methods)} methods to the graph.")
 
-        result = {
-            "files_for_methods_set": files_for_methods
-        }
+        result = {"files_for_methods_set": files_for_methods}
 
         return result
 
@@ -906,14 +894,16 @@ class Cpp:
 
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
 
-        add_methods_dict = self.add_methods(declaredType_dicts.get("methods"), class_names)
+        add_methods_dict = self.add_methods(
+            declaredType_dicts.get("methods"), class_names
+        )
         files_for_methods = add_methods_dict.get("files_for_methods_set")
 
-        files = self.get_files()
-        files.update(files_for_classes)
-        files.update(files_for_methods)
+        files_set = m3_utils.parse_M3_provides(self.parsed)
+        files_set.update(files_for_classes)
+        files_set.update(files_for_methods)
 
-        self.add_files(files)
+        self.add_files(files_set)
 
         # print("Adding invokes")
         # operations = deepcopy(methods)

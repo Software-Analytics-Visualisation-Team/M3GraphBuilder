@@ -13,7 +13,7 @@ def parse_M3_function_Definitions(m3, fragments):
                 "simpleName"
             ):
                 fragments[key]["location"] = get_fragment_declaration_location(rel[1])
-    
+
     for fragment in fragments.items():
         location = fragment[1].get("location")
         if location is None:
@@ -28,6 +28,7 @@ def parse_M3_function_Definitions(m3, fragments):
     }
 
     return result
+
 
 def parse_M3_declarations(m3, fragments):
     declarations_data = m3["declarations"]
@@ -40,7 +41,7 @@ def parse_M3_declarations(m3, fragments):
                 "simpleName"
             ):
                 fragments[key]["location"] = get_fragment_declaration_location(rel[1])
-    
+
     for fragment in fragments.items():
         location = fragment[1].get("location")
         if location is None:
@@ -56,6 +57,17 @@ def parse_M3_declarations(m3, fragments):
 
     return result
 
+
+def parse_M3_provides(m3):
+    provides_data = m3["provides"]
+    files_list = []
+    for rel in provides_data:
+        files_list.append(rel[0])
+    files_list = list(dict.fromkeys(files_list))
+
+    for file in files_list:
+        files_list[files_list.index(file)] = re.sub("\\/.+\\/", "", file)
+    return set(files_list)
 
 
 def parse_M3_declaredType(m3):
@@ -200,7 +212,7 @@ def parse_M3_loc_statement(loc_statement):
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TEMPLATE_TYPE
             fragment["loc"] = loc_statement
         case constants.M3_METHOD_LOC_SCM:  # parse method loc
-            fragment_class, fragment_name = parse_rascal_method_loc( loc_statement )
+            fragment_class, fragment_name = parse_rascal_method_loc(loc_statement)
             fragment["simpleName"] = fragment_name
             fragment["fragmentType"] = constants.M3_CPP_METHOD_TYPE
             fragment["loc"] = loc_statement
@@ -285,6 +297,7 @@ def parse_rascal_loc(schema, loc):
         loc_fragment = re.split("\\(", loc_fragment)[0]
 
     return loc_fragment
+
 
 def parse_rascal_method_loc(method_loc):
 
