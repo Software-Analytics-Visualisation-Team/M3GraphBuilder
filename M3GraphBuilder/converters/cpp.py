@@ -556,51 +556,33 @@ class Cpp:
     #         if field == "msg":
     #             return None
 
-    def get_parameter_type(self, element, field):
-        if field == "decl":
-            return re.sub("cpp\\+class:\\/+", "", element[field])
-        if field == "type":
-            if "decl" in element[field].keys():
-                if (
-                    element[field]["decl"]
-                    == "cpp+classTemplate:///std/__cxx11/basic_string"
-                ):
-                    return "string"
-                else:
-                    return re.sub("cpp\\+class:\\/+", "", element[field]["decl"])
-            if "baseType" in element[field].keys():
-                return element[field]["baseType"]
-            if "modifiers" in element[field].keys():
-                pass
-        if field == "baseType":
-            return element[field]
 
-    def get_parameters(self, function, location, class_name=None):
-        data = self.parsed["declarations"]
-        parameters = []
+    # def get_parameters(self, function, location, class_name=None):
+    #     data = self.parsed["declarations"]
+    #     parameters = []
 
-        if location is None:
-            location = ""
-        if class_name is not None:
-            find = "" + class_name + "/" + function
-        else:
-            find = function
+    #     if location is None:
+    #         location = ""
+    #     if class_name is not None:
+    #         find = "" + class_name + "/" + function
+    #     else:
+    #         find = function
 
-        for element in data:
-            if (
-                re.match("cpp\\+parameter", element[0])
-                and find in element[0]
-                and location in element[1]
-                and re.match("\\|file:\\/+.+.\\|", element[1])
-            ):
-                parameter = {}
-                parameter["name"] = re.sub("cpp\\+parameter:\\/+.+\\/", "", element[0])
-                parameter["location"] = int(
-                    re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", element[1]))[0]
-                )
-                parameters.append(parameter)
-        parameters = sorted(parameters, key=lambda d: d["location"])
-        return parameters
+    #     for element in data:
+    #         if (
+    #             re.match("cpp\\+parameter", element[0])
+    #             and find in element[0]
+    #             and location in element[1]
+    #             and re.match("\\|file:\\/+.+.\\|", element[1])
+    #         ):
+    #             parameter = {}
+    #             parameter["name"] = re.sub("cpp\\+parameter:\\/+.+\\/", "", element[0])
+    #             parameter["location"] = int(
+    #                 re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", element[1]))[0]
+    #             )
+    #             parameters.append(parameter)
+    #     parameters = sorted(parameters, key=lambda d: d["location"])
+    #     return parameters
 
     def add_namespaces(self, namespaces):
         print("Adding namespaces")
