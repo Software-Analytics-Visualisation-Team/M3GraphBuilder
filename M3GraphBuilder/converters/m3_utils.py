@@ -30,29 +30,45 @@ def parse_M3_function_Definitions(m3, fragments):
     return result
 
 
-def parse_M3_declarations(m3, fragments):
+def parse_M3_declarations(m3, fragments=None):
     declarations_data = m3["declarations"]
     unlocated_fragments = {}
+    parameters = {}
     files_containing_fragments = set()
+
     for rel in declarations_data:
         declarations_fragment = parse_M3_loc_statement(rel[0])
-        for key in fragments.keys():
-            if fragments[key].get("simpleName") == declarations_fragment.get(
-                "simpleName"
-            ):
-                fragments[key]["location"] = get_fragment_declaration_location(rel[1])
 
-    for fragment in fragments.items():
-        location = fragment[1].get("location")
-        if location is None:
-            unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+        if fragments is None:
+            match declarations_fragment["fragmentType"]:
+                case constants.M3_CPP_PARAMETER_TYPE:
+                    declarations_fragment = update_parameter_info(
+                        declarations_fragment, rel
+                    )
+                    parameters[declarations_fragment["simpleName"]] = (
+                        declarations_fragment
+                    )
         else:
-            files_containing_fragments.add(location["file"])
+            for key in fragments.keys():
+                if fragments[key].get("simpleName") == declarations_fragment.get(
+                    "simpleName"
+                ):
+                    fragments[key]["location"] = get_fragment_declaration_location(
+                        rel[1]
+                    )
+
+            for fragment in fragments.items():
+                location = fragment[1].get("location")
+                if location is None:
+                    unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+                else:
+                    files_containing_fragments.add(location["file"])
 
     result = {
         "fragments_dict": fragments,
         "unlocated_fragments_dict": unlocated_fragments,
         "files_set": files_containing_fragments,
+        "parameters_dict": parameters,
     }
 
     return result
@@ -282,6 +298,12 @@ def parse_M3_loc_statement(loc_statement):
             )
             fragment["fragmentType"] = constants.M3_CPP_VARIABLE_TYPE
             fragment["loc"] = loc_statement
+        case constants.M3_PARAMETER_LOC_SCM:  # parse parameter loc
+            fragment["simpleName"] = parse_rascal_loc(
+                constants.M3_PARAMETER_LOC_SCM, loc_statement
+            )
+            fragment["fragmentType"] = constants.M3_CPP_PARAMETER_TYPE
+            fragment["loc"] = loc_statement
         case _:
             fragment["fragmentType"] = constants.UNSUPPORTED_TYPE
 
@@ -398,6 +420,35 @@ def get_fragment_type(element, field):
                 return elementParts[len(elementParts) - 1]
         if field == "msg":
             return None
+
+
+def get_parameter_type(element, field):
+    if field == "decl":
+        return re.sub("cpp\\+class:\\/+", "", element[field])
+    if field == "type":
+        if "decl" in element[field].keys():
+            if (
+                element[field]["decl"]
+                == "cpp+classTemplate:///std/__cxx11/basic_string"
+            ):
+                return "string"
+            else:
+                return re.sub("cpp\\+class:\\/+", "", element[field]["decl"])
+        if "baseType" in element[field].keys():
+            return element[field]["baseType"]
+        if "modifiers" in element[field].keys():
+            pass
+    if field == "baseType":
+        return element[field]
+
+
+def update_parameter_info(parameter, rel):
+    parameter["simpleName"] = re.sub("cpp\\+parameter:\\/+.+\\/", "", rel[0])
+    parameter["location"] = int(
+        re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", rel[1]))[0]
+    )
+
+    return parameter
 
 
 def is_fragment_parsed(fragment, fragments):
