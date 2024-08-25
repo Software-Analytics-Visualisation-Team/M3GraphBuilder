@@ -33,38 +33,44 @@ class Cpp:
                 labels = [kind]
 
             case "hasParameter":
-                for parameter in content[1]["parameters"]:
-                    if parameter is not None and parameter != "":
-                        edge_id = hash(parameter["name"]) + hash(content[0])
-                        self.lpg["elements"]["edges"].append(
-                            {
-                                "data": {
-                                    "id": edge_id,
-                                    "source": content[0],
-                                    "properties": {"weight": 1},
-                                    "target": content[0] + "." + parameter["name"],
-                                    "labels": [kind],
-                                }
-                            }
-                        )
+                edge_id = hash(content[1].get("simpleName"))
+                source = content[1].get("function")
+                properties = {"weight": 1}
+                target = content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                labels = [kind]
 
-                        if len(content[1]["location"]) != 0:
-                            edge_id = (
-                                hash(parameter["name"])
-                                + hash(content[0])
-                                + hash(content[1]["location"].get("file"))
-                            )
-                            self.lpg["elements"]["edges"].append(
-                                {
-                                    "data": {
-                                        "id": edge_id,
-                                        "source": content[1]["location"].get("file"),
-                                        "properties": {"weight": 1},
-                                        "target": content[0] + "." + parameter["name"],
-                                        "labels": ["contains"],
-                                    }
-                                }
-                            )
+                # for parameter in content[1]["parameters"]:
+                #     if parameter is not None and parameter != "":
+                #         edge_id = hash(parameter["name"]) + hash(content[0])
+                #         self.lpg["elements"]["edges"].append(
+                #             {
+                #                 "data": {
+                #                     "id": edge_id,
+                #                     "source": content[0],
+                #                     "properties": {"weight": 1},
+                #                     "target": content[0] + "." + parameter["name"],
+                #                     "labels": [kind],
+                #                 }
+                #             }
+                #         )
+
+                        # if len(content[1]["location"]) != 0:
+                        #     edge_id = (
+                        #         hash(parameter["name"])
+                        #         + hash(content[0])
+                        #         + hash(content[1]["location"].get("file"))
+                        #     )
+                        #     self.lpg["elements"]["edges"].append(
+                        #         {
+                        #             "data": {
+                        #                 "id": edge_id,
+                        #                 "source": content[1]["location"].get("file"),
+                        #                 "properties": {"weight": 1},
+                        #                 "target": content[0] + "." + parameter["name"],
+                        #                 "labels": ["contains"],
+                        #             }
+                        #         }
+                        #     )
 
             case "returnType":
                 # if content[0] is not None and content[1]["returnType"] is not None:
@@ -304,22 +310,29 @@ class Cpp:
                 #             vulnerabilities.append(issue)
 
             case "parameter":
-                for parameter in content[1]["parameters"]:
-                    if parameter is not None and parameter != "":
-                        self.lpg["elements"]["nodes"].append(
-                            {
-                                "data": {
-                                    "id": content[0] + "." + parameter["name"],
-                                    "properties": {
-                                        "simpleName": parameter["name"],
-                                        "kind": kind,
-                                    },
-                                    "labels": ["Variable"],
-                                }
-                            }
-                        )
-                        if "type" in parameter.keys() and parameter["type"] is not None:
-                            self.add_edges("type", {content[0]: parameter})
+                node_id = content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                properties = {
+                    "simpleName": content[1].get("simpleName"),
+                    "kind": kind,
+                }
+                labels = ["Variable"]
+
+                # for parameter in content[1]["parameters"]:
+                #     if parameter is not None and parameter != "":
+                #         self.lpg["elements"]["nodes"].append(
+                #             {
+                #                 "data": {
+                #                     "id": content[0] + "." + parameter["name"],
+                #                     "properties": {
+                #                         "simpleName": parameter["name"],
+                #                         "kind": kind,
+                #                     },
+                #                     "labels": ["Variable"],
+                #                 }
+                #             }
+                #         )
+                #         if "type" in parameter.keys() and parameter["type"] is not None:
+                #             self.add_edges("type", {content[0]: parameter})
             case "method":
                 # vulnerabilities = []
                 # if self.issues is not None:
@@ -624,9 +637,9 @@ class Cpp:
             self.parsed, classes
         )  # get class locations
 
-        classes = function_Definitions_dict.get("fragments_dict")
-        unlocated_classes = function_Definitions_dict.get("unlocated_fragments_dict")
-        files_in_function_Definitions = function_Definitions_dict.get("files_set")
+        classes = function_Definitions_dict.get("fragments")
+        unlocated_classes = function_Definitions_dict.get("unlocated_fragments")
+        files_in_function_Definitions = function_Definitions_dict.get("files")
 
         if self.verbose:
             print(
@@ -644,9 +657,9 @@ class Cpp:
             declarations_dict = m3_utils.parse_M3_declarations(
                 self.parsed, unlocated_classes
             )
-            located_classes = declarations_dict.get("fragments_dict")
-            still_unlocated_classes = declarations_dict.get("unlocated_fragments_dict")
-            files_in_declarations = declarations_dict.get("files_set")
+            located_classes = declarations_dict.get("fragments")
+            still_unlocated_classes = declarations_dict.get("unlocated_fragments")
+            files_in_declarations = declarations_dict.get("files")
 
         if self.verbose:
             if len(still_unlocated_classes) > 0:
@@ -731,9 +744,9 @@ class Cpp:
         function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
             self.parsed, methods
         )  # get method locations
-        methods = function_Definitions_dict.get("fragments_dict")
-        unlocated_methods = function_Definitions_dict.get("unlocated_fragments_dict")
-        files_in_function_Definitions = function_Definitions_dict.get("files_set")
+        methods = function_Definitions_dict.get("fragments")
+        unlocated_methods = function_Definitions_dict.get("unlocated_fragments")
+        files_in_function_Definitions = function_Definitions_dict.get("files")
 
         if self.verbose:
             print(
@@ -751,9 +764,9 @@ class Cpp:
             declarations_dict = m3_utils.parse_M3_declarations(
                 self.parsed, unlocated_methods
             )
-            located_methods = declarations_dict.get("fragments_dict")
-            still_unlocated_methods = declarations_dict.get("unlocated_fragments_dict")
-            files_in_declarations = declarations_dict.get("files_set")
+            located_methods = declarations_dict.get("fragments")
+            still_unlocated_methods = declarations_dict.get("unlocated_fragments")
+            files_in_declarations = declarations_dict.get("files")
 
         if self.verbose:
             if len(still_unlocated_methods) > 0:
@@ -801,11 +814,19 @@ class Cpp:
 
         return result
 
-    def add_functions(self, functions):
-        print("Adding methods")
+    def add_functions(self, functions, parameters):
+        print("Adding functions")
 
         for f in functions.items():
             self.add_nodes("function", f)
+            function_parameters = parameters.get(f[1].get("functionLoc"))
+            if function_parameters is not None:
+                print(f"adding params for {f[0]}")
+                for param in function_parameters:
+                    self.add_nodes("parameter", param)
+                    self.add_edges("hasParameter", param)
+            else:
+                print(f"function {f} with empty parameters")
 
         print(f"Successfully added {len(functions)} functions to the graph.")
 
@@ -889,7 +910,9 @@ class Cpp:
         )
         files_for_methods = add_methods_dict.get("files_for_methods_set")
 
-        self.add_functions(declaredType_dicts.get("functions"))
+        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
+        self.add_functions(declaredType_dicts.get("functions"), declarations_dict.get("parameters"))
+        # print(declarations_dict.get("parameters"))
 
         files_set = m3_utils.parse_M3_provides(self.parsed)
         files_set.update(files_for_classes)

@@ -2,73 +2,84 @@ import re
 import M3GraphBuilder.converters.constants as constants
 
 
-def parse_M3_function_Definitions(m3, fragments):
+def parse_M3_function_Definitions(m3, fragments_dict):
     function_Definitions_data = m3["functionDefinitions"]
-    unlocated_fragments = {}
-    files_containing_fragments = set()
+    unlocated_fragments_dict = {}
+    files_containing_fragments_set = set()
     for rel in function_Definitions_data:
         function_Definitions_fragment = parse_M3_loc_statement(rel[0])
-        for key in fragments.keys():
-            if fragments[key].get("simpleName") == function_Definitions_fragment.get(
+        for key in fragments_dict.keys():
+            if fragments_dict[key].get("simpleName") == function_Definitions_fragment.get(
                 "simpleName"
             ):
-                fragments[key]["location"] = get_fragment_declaration_location(rel[1])
+                fragments_dict[key]["location"] = get_fragment_declaration_location(rel[1])
 
-    for fragment in fragments.items():
+    for fragment in fragments_dict.items():
         location = fragment[1].get("location")
         if location is None:
-            unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+            unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[1]
         else:
-            files_containing_fragments.add(location["file"])
+            files_containing_fragments_set.add(location["file"])
 
     result = {
-        "fragments_dict": fragments,
-        "unlocated_fragments_dict": unlocated_fragments,
-        "files_set": files_containing_fragments,
+        "fragments": fragments_dict,
+        "unlocated_fragments": unlocated_fragments_dict,
+        "files": files_containing_fragments_set,
     }
 
     return result
 
 
-def parse_M3_declarations(m3, fragments=None):
+def parse_M3_declarations(m3, fragments_dict=None):
     declarations_data = m3["declarations"]
-    unlocated_fragments = {}
-    parameters = {}
-    files_containing_fragments = set()
+    unlocated_fragments_dict = {}
+    parameters_dict = {}
+    files_containing_fragments_set = set()
 
     for rel in declarations_data:
         declarations_fragment = parse_M3_loc_statement(rel[0])
 
-        if fragments is None:
+        if fragments_dict is None:
             match declarations_fragment["fragmentType"]:
                 case constants.M3_CPP_PARAMETER_TYPE:
                     declarations_fragment = update_parameter_info(
                         declarations_fragment, rel
                     )
-                    parameters[declarations_fragment["simpleName"]] = (
-                        declarations_fragment
-                    )
+
+                    if declarations_fragment is not None:
+
+                        parameters_for_function = parameters_dict.get(declarations_fragment["functionLoc"])
+                        
+                        if parameters_for_function is None:
+                            parameters_dict[declarations_fragment["functionLoc"]] = [declarations_fragment]
+                        else:
+                            parameters_for_function.append(declarations_fragment)
+                            parameters_dict[declarations_fragment["functionLoc"]] = parameters_for_function
+                    else:
+                        print("[DEBUG] empty parameter processed:")
+                        print(rel[0])
+
         else:
-            for key in fragments.keys():
-                if fragments[key].get("simpleName") == declarations_fragment.get(
+            for key in fragments_dict.keys():
+                if fragments_dict[key].get("simpleName") == declarations_fragment.get(
                     "simpleName"
                 ):
-                    fragments[key]["location"] = get_fragment_declaration_location(
+                    fragments_dict[key]["location"] = get_fragment_declaration_location(
                         rel[1]
                     )
 
-            for fragment in fragments.items():
+            for fragment in fragments_dict.items():
                 location = fragment[1].get("location")
                 if location is None:
-                    unlocated_fragments[fragment[1].get("simpleName")] = fragment[1]
+                    unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[1]
                 else:
-                    files_containing_fragments.add(location["file"])
+                    files_containing_fragments_set.add(location["file"])
 
     result = {
-        "fragments_dict": fragments,
-        "unlocated_fragments_dict": unlocated_fragments,
-        "files_set": files_containing_fragments,
-        "parameters_dict": parameters,
+        "fragments": fragments_dict,
+        "unlocated_fragments": unlocated_fragments_dict,
+        "files": files_containing_fragments_set,
+        "parameters": parameters_dict,
     }
 
     return result
@@ -205,105 +216,119 @@ def parse_M3_loc_statement(loc_statement):
     fragment = {}
 
     fragment_loc_schema = re.match(constants.M3_SCHEMA_REGEX, loc_statement)
+    fragment_type = fragment_loc_schema[0].split(":///")[0]
 
-    match fragment_loc_schema[0]:
-        case constants.M3_CLASS_LOC_SCM:  # parse class loc
-            fragment["simpleName"] = parse_rascal_loc(
+    match fragment_type:
+        case constants.M3_CPP_CLASS_TYPE:  # parse class loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_CONSTRUCTOR_LOC_SCM:  # parse constructor loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_CONSTRUCTOR_TYPE:  # parse constructor loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_CONSTRUCTOR_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_CONSTRUCTOR_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_FUNCTION_LOC_SCM:  # parse function loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_FUNCTION_TYPE:  # parse function loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_FUNCTION_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_FUNCTION_TEMPLATE_LOC_SCM:  # parse functionTemplate loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_FUNCTION_TEMPLATE_TYPE:  # parse functionTemplate loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_FUNCTION_TEMPLATE_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TEMPLATE_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_METHOD_LOC_SCM:  # parse method loc
-            fragment_class, fragment_name = parse_rascal_method_loc(loc_statement)
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_METHOD_TYPE:  # parse method loc
+            loc_path, fragment_class, fragment_name = parse_rascal_method_loc(loc_statement)
             fragment["simpleName"] = fragment_name
             fragment["fragmentType"] = constants.M3_CPP_METHOD_TYPE
-            fragment["loc"] = loc_statement
+            fragment["loc"] = loc_path
 
             fragment["class"] = fragment_class
-        case constants.M3_NAMESPACE_LOC_SCM:  # parse namespace loc
-            fragment["simpleName"] = parse_rascal_loc(
+        case constants.M3_CPP_NAMESPACE_TYPE:  # parse namespace loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_NAMESPACE_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_NAMESPACE_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_DEFFERED_CLASS_LOC_SCM:  # parse deferredClassInstance loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_DEFERRED_CLASS_TYPE:  # parse deferredClassInstance loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_DEFFERED_CLASS_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_DEFERRED_CLASS_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_CLASS_TEMPLATE_LOC_SCM:  # parse classTemplate loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_CLASS_TEMPLATE_TYPE:  # parse classTemplate loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_TEMPLATE_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TEMPLATE_TYPE
-            fragment["loc"] = loc_statement
+            fragment["loc"] = loc_path
         case (
-            constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM
+            constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
         ):  # parse templateTypeParameter loc
-            fragment["simpleName"] = parse_rascal_loc(
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
-            fragment["loc"] = loc_statement
+            fragment["loc"] = loc_path
         case (
-            constants.M3_CLASS_TEMPLATE_PARTIAL_SPEC_LOC_SCM
+            constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
         ):  # parse classTemplatePartialSpec loc
-            fragment["simpleName"] = parse_rascal_loc(
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_TEMPLATE_PARTIAL_SPEC_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_CLASS_SPECIALIZATION_LOC_SCM:  # parse classSpecialization loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_CLASS_SPECIALIZATION_TYPE:  # parse classSpecialization loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_SPECIALIZATION_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_TRANSLATION_UNIT_LOC_SCM:  # parse translationUnit loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_TRANSLATION_UNIT_TYPE:  # parse translationUnit loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_TRANSLATION_UNIT_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_TRANSLATION_UNIT_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_PROBLEM_LOC_SCM:  # parse problem loc
+            fragment["loc"] = loc_path
+        case constants.M3_PROBLEM_TYPE:  # parse problem loc
             parsed_problem_loc = parse_rascal_problem_loc(loc_statement)
             if parsed_problem_loc.get("object") is not None:
                 fragment["simpleName"] = parsed_problem_loc.get("object")
             else:
                 fragment["simpleName"] = parsed_problem_loc.get("id")
             fragment["fragmentType"] = constants.M3_PROBLEM_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_VARIABLE_LOC_SCM:  # parse variable loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = parsed_problem_loc.get("loc_path")
+        case constants.M3_CPP_VARIABLE_TYPE:  # parse variable loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_VARIABLE_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_VARIABLE_TYPE
-            fragment["loc"] = loc_statement
-        case constants.M3_PARAMETER_LOC_SCM:  # parse parameter loc
-            fragment["simpleName"] = parse_rascal_loc(
+            fragment["loc"] = loc_path
+        case constants.M3_CPP_PARAMETER_TYPE:  # parse parameter loc
+            loc_path, simple_name = parse_rascal_loc(
                 constants.M3_PARAMETER_LOC_SCM, loc_statement
             )
+            fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_PARAMETER_TYPE
-            fragment["loc"] = loc_statement
+            fragment["loc"] = loc_path
         case _:
             fragment["fragmentType"] = constants.UNSUPPORTED_TYPE
 
@@ -322,12 +347,12 @@ def parse_rascal_loc(schema, loc):
     if re.search(r"\(|\)", loc_fragment):
         loc_fragment = re.split("\\(", loc_fragment)[0]
 
-    return loc_fragment
+    return loc_path, loc_fragment
 
 
 def parse_rascal_method_loc(method_loc):
 
-    loc_path = method_loc.replace(constants.M3_METHOD_LOC_SCM, "")
+    loc_path = re.sub(constants.M3_METHOD_LOC_SCM, "", method_loc)
     parsed_loc = re.split("/", loc_path)
     method_loc_class = parsed_loc[-2]
     method_loc_fragment = parsed_loc[-1]
@@ -339,12 +364,12 @@ def parse_rascal_method_loc(method_loc):
     if re.search(r"\(|\)", method_loc_fragment):
         method_loc_fragment = re.split("\\(", method_loc_fragment)[0]
 
-    return method_loc_class, method_loc_fragment
+    return loc_path, method_loc_class, method_loc_fragment
 
 
 def parse_rascal_problem_loc(problem_loc):
     try:
-        loc_path = problem_loc.replace(constants.M3_PROBLEM_LOC_SCM, "")
+        loc_path = re.sub(constants.M3_PROBLEM_LOC_SCM, "", problem_loc)
         id_and_message = loc_path.split("?message=")
 
         if len(id_and_message) == 2:
@@ -358,7 +383,7 @@ def parse_rascal_problem_loc(problem_loc):
             else:
                 error_object = ""
 
-            return {"id": location_id, "message": error_message, "object": error_object}
+            return {"loc_path": loc_path, "id": location_id, "message": error_message, "object": error_object}
         else:
             return None  # Invalid format
     except Exception as e:
@@ -443,12 +468,23 @@ def get_parameter_type(element, field):
 
 
 def update_parameter_info(parameter, rel):
-    parameter["simpleName"] = re.sub("cpp\\+parameter:\\/+.+\\/", "", rel[0])
-    parameter["location"] = int(
-        re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", rel[1]))[0]
-    )
+    parameter["function"] = re.split("\\(", re.split("/", rel[0])[-2])[0]
+    loc_path = re.sub(constants.M3_PARAMETER_LOC_SCM, "", rel[0])
+    loc_path_list = loc_path.split("/")
+    parameter["simpleName"] = loc_path_list[-1]
 
-    return parameter
+    if parameter["simpleName"] == "":
+        return None
+    else:
+        parameter["location"] = int(
+            re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", rel[1]))[0]
+        )
+        function_path = "/".join(loc_path_list[1:-1])
+
+        function_path = loc_path_list[0] + function_path
+        parameter["functionLoc"] = function_path
+
+        return parameter
 
 
 def is_fragment_parsed(fragment, fragments):
