@@ -423,6 +423,61 @@ class Cpp:
 
         self.append_node(node_id, properties, labels)
 
+    def get_fragment_files(self, fragments):
+        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
+            self.parsed, fragments
+        )
+        fragments_updated_from_Definitions = function_Definitions_dict.get("fragments")
+        unlocated_fragments = function_Definitions_dict.get("unlocated_fragments")
+        files_in_function_Definitions = function_Definitions_dict.get("files")
+
+        if self.verbose:
+            print(
+                f"[VERBOSE] Succesfully found the physical locations for {len(fragments_updated_from_Definitions) - len(unlocated_fragments)} fragments in 'functionDefinitions'."
+            )
+            print(
+                f"[VERBOSE] Did not find the physical locations of {len(unlocated_fragments)} fragments in 'functionDefinitions'."
+            )
+
+        if len(unlocated_fragments) > 0:
+            print(
+                f"[VERBOSE] Searching for physical locations of unlocated fragments in 'declarations'."
+            )
+
+            declarations_dict = m3_utils.parse_M3_declarations(
+                self.parsed, unlocated_fragments
+            )
+            fragments_updated_from_Declarations = declarations_dict.get("fragments")
+            still_unlocated_fragments = declarations_dict.get("unlocated_fragments")
+            files_in_declarations = declarations_dict.get("files")
+
+        if self.verbose:
+            if len(still_unlocated_fragments) > 0:
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations for {len(fragments_updated_from_Declarations) - len(still_unlocated_fragments)} fragments in 'declarations'."
+                )
+                print(
+                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_fragments)} fragments in 'declarations'."
+                )
+            else:
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations of all unlocated fragments in 'declarations'."
+                )
+
+        fragments_updated = (
+            fragments_updated_from_Definitions | fragments_updated_from_Declarations
+        )
+
+        files = set()
+        if len(files_in_function_Definitions) > 0:
+            files.update(files_in_function_Definitions)
+        if len(files_in_declarations) > 0:
+            files.update(files_in_declarations)
+
+        result = {"fragments": fragments_updated, "files": files}
+
+        return result
+
     def get_functions(self):
         functions = {}
         problem_declarations = {}
@@ -744,55 +799,11 @@ class Cpp:
     def add_methods(self, methods, class_simple_names, parameters):
         print("Adding methods")
 
-        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
-            self.parsed, methods
-        )  # get method locations
-        methods = function_Definitions_dict.get("fragments")
-        unlocated_methods = function_Definitions_dict.get("unlocated_fragments")
-        files_in_function_Definitions = function_Definitions_dict.get("files")
+        get_fragment_files_dict = self.get_fragment_files(methods)
+        updated_methods = get_fragment_files_dict.get("fragments")
+        files_for_methods = get_fragment_files_dict.get("files")
 
-        if self.verbose:
-            print(
-                f"[VERBOSE] Succesfully found the physical locations for {len(methods)} methods in 'functionDefinitions'."
-            )
-            print(
-                f"[VERBOSE] Did not find the physical locations of {len(unlocated_methods)} methods in 'functionDefinitions'."
-            )
-
-        if len(unlocated_methods) > 0:
-            print(
-                f"[VERBOSE] Searching for physical locations of unlocated methods in 'declarations'."
-            )
-
-            declarations_dict = m3_utils.parse_M3_declarations(
-                self.parsed, unlocated_methods
-            )
-            located_methods = declarations_dict.get("fragments")
-            still_unlocated_methods = declarations_dict.get("unlocated_fragments")
-            files_in_declarations = declarations_dict.get("files")
-
-        if self.verbose:
-            if len(still_unlocated_methods) > 0:
-                print(
-                    f"[VERBOSE] Succesfully found the physical locations for {len(located_methods)} methods in 'declarations'."
-                )
-                print(
-                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_methods)} methods in 'declarations'."
-                )
-            else:
-                print(
-                    f"[VERBOSE] Succesfully found the physical locations of all unlocated methods in 'declarations'."
-                )
-
-        methods = methods | located_methods
-
-        files_for_methods = set()
-        if len(files_in_function_Definitions) > 0:
-            files_for_methods.update(files_in_function_Definitions)
-        if len(files_in_declarations) > 0:
-            files_for_methods.update(files_in_declarations)
-
-        for m in methods.items():
+        for m in updated_methods.items():
             self.add_nodes("method", m)
 
             if m[1].get("class") in class_simple_names:
@@ -829,57 +840,11 @@ class Cpp:
     def add_functions(self, functions, parameters):
         print("Adding functions")
 
-        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
-            self.parsed, functions
-        )  # get method locations
-        functions_updated_from_Definitions = function_Definitions_dict.get("fragments")
-        unlocated_functions = function_Definitions_dict.get("unlocated_fragments")
-        files_in_function_Definitions = function_Definitions_dict.get("files")
+        get_fragment_files_dict = self.get_fragment_files(functions)
+        updated_functions = get_fragment_files_dict.get("fragments")
+        files_for_functions = get_fragment_files_dict.get("files")
 
-        if self.verbose:
-            print(
-                f"[VERBOSE] Succesfully found the physical locations for {len(functions_updated_from_Definitions) - len(unlocated_functions)} functions in 'functionDefinitions'."
-            )
-            print(
-                f"[VERBOSE] Did not find the physical locations of {len(unlocated_functions)} functions in 'functionDefinitions'."
-            )
-
-        if len(unlocated_functions) > 0:
-            print(
-                f"[VERBOSE] Searching for physical locations of unlocated functions in 'declarations'."
-            )
-
-            declarations_dict = m3_utils.parse_M3_declarations(
-                self.parsed, unlocated_functions
-            )
-            functions_updated_from_Declarations = declarations_dict.get("fragments")
-            still_unlocated_functions = declarations_dict.get("unlocated_fragments")
-            files_in_declarations = declarations_dict.get("files")
-
-        if self.verbose:
-            if len(still_unlocated_functions) > 0:
-                print(
-                    f"[VERBOSE] Succesfully found the physical locations for {len(functions_updated_from_Declarations) - len(still_unlocated_functions)} functions in 'declarations'."
-                )
-                print(
-                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_functions)} functions in 'declarations'."
-                )
-            else:
-                print(
-                    f"[VERBOSE] Succesfully found the physical locations of all unlocated functions in 'declarations'."
-                )
-
-        functions_updated = (
-            functions_updated_from_Definitions | functions_updated_from_Declarations
-        )
-
-        files_for_functions = set()
-        if len(files_in_function_Definitions) > 0:
-            files_for_functions.update(files_in_function_Definitions)
-        if len(files_in_declarations) > 0:
-            files_for_functions.update(files_in_declarations)
-
-        for f in functions_updated.items():
+        for f in updated_functions.items():
             self.add_nodes("function", f)
             self.add_edges("contains", f)
             function_parameters = parameters.get(f[1].get("functionLoc"))
