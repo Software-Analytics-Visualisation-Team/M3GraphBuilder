@@ -829,8 +829,59 @@ class Cpp:
     def add_functions(self, functions, parameters):
         print("Adding functions")
 
-        for f in functions.items():
+        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
+            self.parsed, functions
+        )  # get method locations
+        functions_updated_from_Definitions = function_Definitions_dict.get("fragments")
+        unlocated_functions = function_Definitions_dict.get("unlocated_fragments")
+        files_in_function_Definitions = function_Definitions_dict.get("files")
+
+        if self.verbose:
+            print(
+                f"[VERBOSE] Succesfully found the physical locations for {len(functions_updated_from_Definitions) - len(unlocated_functions)} functions in 'functionDefinitions'."
+            )
+            print(
+                f"[VERBOSE] Did not find the physical locations of {len(unlocated_functions)} functions in 'functionDefinitions'."
+            )
+
+        if len(unlocated_functions) > 0:
+            print(
+                f"[VERBOSE] Searching for physical locations of unlocated functions in 'declarations'."
+            )
+
+            declarations_dict = m3_utils.parse_M3_declarations(
+                self.parsed, unlocated_functions
+            )
+            functions_updated_from_Declarations = declarations_dict.get("fragments")
+            still_unlocated_functions = declarations_dict.get("unlocated_fragments")
+            files_in_declarations = declarations_dict.get("files")
+
+        if self.verbose:
+            if len(still_unlocated_functions) > 0:
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations for {len(functions_updated_from_Declarations) - len(still_unlocated_functions)} functions in 'declarations'."
+                )
+                print(
+                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_functions)} functions in 'declarations'."
+                )
+            else:
+                print(
+                    f"[VERBOSE] Succesfully found the physical locations of all unlocated functions in 'declarations'."
+                )
+
+        functions_updated = (
+            functions_updated_from_Definitions | functions_updated_from_Declarations
+        )
+
+        files_for_functions = set()
+        if len(files_in_function_Definitions) > 0:
+            files_for_functions.update(files_in_function_Definitions)
+        if len(files_in_declarations) > 0:
+            files_for_functions.update(files_in_declarations)
+
+        for f in functions_updated.items():
             self.add_nodes("function", f)
+            self.add_edges("contains", f)
             function_parameters = parameters.get(f[1].get("functionLoc"))
             if function_parameters is not None:
                 print(f"adding params for {f[0]}")
@@ -841,6 +892,10 @@ class Cpp:
                 print(f"function {f} with empty parameters")
 
         print(f"Successfully added {len(functions)} functions to the graph.")
+
+        result = {"files_for_functions_set": files_for_functions}
+
+        return result
 
     def get_invokes(self, operations):
         data = self.parsed["callGraph"]
@@ -927,15 +982,17 @@ class Cpp:
 
         # print(declarations_dict.get("parameters"))
 
+        add_functions_dict = self.add_functions(
+            declaredType_dicts.get("functions"), declarations_dict.get("parameters")
+        )
+        files_for_functions = add_functions_dict.get("files_for_functions_set")
+
         files_set = m3_utils.parse_M3_provides(self.parsed)
         files_set.update(files_for_classes)
         files_set.update(files_for_methods)
+        files_set.update(files_for_functions)
 
         self.add_files(files_set)
-
-        self.add_functions(
-            declaredType_dicts.get("functions"), declarations_dict.get("parameters")
-        )
 
         # print("Adding invokes")
         # operations = deepcopy(methods)
