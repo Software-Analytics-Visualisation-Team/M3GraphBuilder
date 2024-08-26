@@ -63,9 +63,9 @@ def parse_M3_declarations(m3, fragments_dict=None):
                             parameters_dict[declarations_fragment["functionLoc"]] = (
                                 parameters_for_function
                             )
-                    else:
-                        print("[DEBUG] empty parameter processed:")
-                        print(rel[0])
+                    # else:
+                    #     print("[DEBUG] empty parameter processed:")
+                    #     print(rel[0])
 
         else:
             for key in fragments_dict.keys():

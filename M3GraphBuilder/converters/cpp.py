@@ -1,5 +1,4 @@
 from copy import deepcopy
-import re
 import json
 import M3GraphBuilder.converters.constants as constants
 import M3GraphBuilder.converters.m3_utils as m3_utils
@@ -478,183 +477,6 @@ class Cpp:
 
         return result
 
-    def get_functions(self):
-        functions = {}
-        problem_declarations = {}
-        data = self.parsed["declaredType"]
-        for element in data:
-            if self.is_rascal_problem(element[0]):
-                problem = self.parse_problem(element[0])
-                problem_declarations[problem["id"]] = problem
-            if re.match("cpp\\+function:", element[0]):
-                parameters = []
-                function = dict()
-                function["functionName"] = re.split(
-                    "\\(", re.sub("cpp\\+function:.+\\/", "", element[0])
-                )[0]
-                #####
-                # function["location"] = self.get_function_location(
-                #     function["functionName"]
-                # )
-                #####
-                returnField = self.get_type_field(element[1]["returnType"])
-                function["returnType"] = self.get_type(
-                    element[1]["returnType"], returnField
-                )
-
-                if element[1]["parameterTypes"]:
-                    if "file" in function["location"].keys():
-                        loc = function["location"].get("file")
-                    else:
-                        loc = None
-
-                    parameters = self.get_parameters(function["functionName"], loc)
-                    i = 0
-                    for parameter in element[1]["parameterTypes"]:
-                        try:
-                            parameters[i]["type"] = self.get_parameter_type(
-                                parameter, self.get_type_field(parameter)
-                            )
-                            i += 1
-                        except IndexError:
-                            pass
-                function["parameters"] = parameters
-                function["variables"] = self.get_variables(element[0])
-                functions[function["functionName"]] = function
-        return functions, problem_declarations
-
-    # def get_variables(self, operator):
-    #     variables = []
-    #     data = self.parsed["declaredType"]
-    #     operator_name = "cpp+variable:" + re.split("cpp\\+.+:", operator)[1]
-    #     for element in data:
-    #         if re.match("cpp\\+variable:", element[0]) and operator_name in element[0]:
-    #             variable = {}
-    #             variable["name"] = re.sub("cpp\\+variable:.+/", "", element[0])
-    #             variable["type"] = self.get_type(
-    #                 element[1], self.get_type_field(element[1])
-    #             )
-    #             variables.append(variable)
-    #     return variables
-
-    # def get_methods(self):
-    #     data = self.parsed["declaredType"]
-    #     methods = {}
-    #     for element in data:
-    #         parameters = []
-
-    #         if re.match("cpp\\+method", element[0]):
-    #             method = dict()
-    #             # Addition
-    #             elementParts = re.split(
-    #                 "\\/", re.sub("cpp\\+method:\\/\\/\\/", "", element[0])
-    #             )
-    #             # method["class"] = "/".join(elementParts[:-1])
-    #             # method["class"] = elementParts[len(elementParts) - 2]
-
-    #             method["methodName"] = re.split(
-    #                 "\\(", elementParts[len(elementParts) - 1]
-    #             )[0]
-    #             # End Addition
-    #             # #####
-    #             # method["location"] = self.get_method_location(
-    #             #     method["class"], method["methodName"]
-    #             # )
-    #             #####
-
-    #             method["returnType"] = self.get_type(
-    #                 element[1]["returnType"],
-    #                 self.get_type_field(element[1]["returnType"]),
-    #             )
-
-    #             # Addition of second if statement
-    #             # if element[1]["parameterTypes"]:
-    #             #     if "file" in method["location"].keys():
-    #             #         parameters = self.get_parameters(
-    #             #             method["methodName"],
-    #             #             method["location"].get("file"),
-    #             #             method["class"],
-    #             #         )
-    #             #     else:
-    #             #         parameters = self.get_parameters(
-    #             #             method["methodName"], "none", method["class"]
-    #             #         )
-
-    #             #     i = 0
-    #             #     # Addition
-    #             #     if len(parameters) != 0:
-    #             #         for parameter in element[1]["parameterTypes"]:
-    #             #             if i < len(parameters):
-    #             #                 parameters[i]["type"] = self.get_parameter_type(
-    #             #                     parameter, self.get_type_field(parameter)
-    #             #                 )
-    #             #                 i += 1
-
-    #             method["parameters"] = {}  # TODO: Attach parameters
-    #             method["variables"] = self.get_variables(element[0])
-    #             id = method["class"] + "." + method["methodName"]
-    #             methods[id] = method
-    #     return methods
-
-    # def get_type_field(self, element):
-    #     try:
-    #         if "baseType" in element.keys():
-    #             return "baseType"
-    #         if "decl" in element.keys():
-    #             return "decl"
-    #         if "type" in element.keys():
-    #             return "type"
-    #         if "msg" in element.keys():
-    #             return "msg"
-    #         if "templateArguments" in element.keys():
-    #             return None
-    #     except:
-    #         return None
-
-    # def get_type(self, element, field):
-    #     if self.get_type_field(element.get(field)) is not None:
-    #         return self.get_type(element[field], self.get_type_field(element[field]))
-    #     else:
-    #         if field == "baseType":
-    #             return element[field]
-    #         if field == "decl":
-    #             if re.match("cpp\\+classTemplate", element[field]):
-    #                 return "string"
-    #             else:
-    #                 elementParts = re.split(
-    #                     "\\/", re.sub("cpp\\+class:\\/\\/\\/", "", element[field])
-    #                 )
-    #                 return elementParts[len(elementParts) - 1]
-    #         if field == "msg":
-    #             return None
-
-    # def get_parameters(self, function, location, class_name=None):
-    #     data = self.parsed["declarations"]
-    #     parameters = []
-
-    #     if location is None:
-    #         location = ""
-    #     if class_name is not None:
-    #         find = "" + class_name + "/" + function
-    #     else:
-    #         find = function
-
-    #     for element in data:
-    #         if (
-    #             re.match("cpp\\+parameter", element[0])
-    #             and find in element[0]
-    #             and location in element[1]
-    #             and re.match("\\|file:\\/+.+.\\|", element[1])
-    #         ):
-    #             parameter = {}
-    #             parameter["name"] = re.sub("cpp\\+parameter:\\/+.+\\/", "", element[0])
-    #             parameter["location"] = int(
-    #                 re.split(",", re.sub("\\|file:\\/+.+\\|\\(", "", element[1]))[0]
-    #             )
-    #             parameters.append(parameter)
-    #     parameters = sorted(parameters, key=lambda d: d["location"])
-    #     return parameters
-
     def add_namespaces(self, namespaces):
         print("Adding namespaces")
 
@@ -814,23 +636,13 @@ class Cpp:
 
             method_parameters = parameters.get(m[1].get("functionLoc"))
             if method_parameters is not None:
-                print(f"adding params for {m[0]}")
+                # print(f"adding params for {m[0]}")
                 for param in method_parameters:
                     self.add_nodes("parameter", param)
                     self.add_edges("hasParameter", param)
-            else:
-                print(f"method {m} with empty parameters")
-        # methods = self.get_methods()
-        # for m in methods.items():
-        #     self.add_nodes("method", m)
-        #     self.add_edges("hasScript", m)
-        #     # self.add_edges("returnType", m)
-        #     # if m[1]["parameters"]:
-        #     #     self.add_nodes("parameter", m)
-        #     #     self.add_edges("hasParameter", m)
-        #     # if m[1]["variables"]:
-        #     #     self.add_nodes("variable", m)
-        #     #     self.add_edges("hasVariable", m)
+            # else:
+            #     print(f"method {m} with empty parameters")
+
         print(f"Successfully added {len(methods)} methods to the graph.")
 
         result = {"files_for_methods_set": files_for_methods}
@@ -849,12 +661,12 @@ class Cpp:
             self.add_edges("contains", f)
             function_parameters = parameters.get(f[1].get("functionLoc"))
             if function_parameters is not None:
-                print(f"adding params for {f[0]}")
+                # print(f"adding params for {f[0]}")
                 for param in function_parameters:
                     self.add_nodes("parameter", param)
                     self.add_edges("hasParameter", param)
-            else:
-                print(f"function {f} with empty parameters")
+            # else:
+            #     print(f"function {f} with empty parameters")
 
         print(f"Successfully added {len(functions)} functions to the graph.")
 
@@ -884,38 +696,9 @@ class Cpp:
             containment_dict.get("partial_specializations")
         )
 
-        # print("Adding declarations")
-        # functions, problem_declarations = self.get_functions()
-        # for primitve in self.primitives:
-        #     self.add_nodes("Primitive", primitve)
-        # for problem in problem_declarations.items():
-        #     self.add_nodes("problem", problem)
-        # print(f"Successfully added {len(problem_declarations)} Rascal problem declarations to the graph.")
-
-        # for func in functions.items():
-        #     self.add_nodes("function", func)
-        #     # if func[1]["parameters"]:
-        #     #     self.add_nodes("parameter", func)
-        #     #     self.add_edges("hasParameter", func)
-        #     # if func[1]["variables"]:
-        #     #     self.add_nodes("variable", func)
-        #     #     self.add_edges("hasVariable", func)
-        #     # self.add_edges("returnType", func)
-        #     self.add_edges("contains", func)
-        # print(f"Successfully added {len(functions)} functions to the graph.")
-
-        add_classes_dict = self.add_classes(
-            containment_dict.get("classes")
-        )  # collect classes for method location
+        add_classes_dict = self.add_classes(containment_dict.get("classes"))
         class_names = add_classes_dict.get("class_names_set")
         files_for_classes = add_classes_dict.get("files_for_classes_set")
-
-        # print("Adding Rascal problem classes")
-        # for pc in problem_classes.items():
-        #     self.add_nodes("problem", pc)
-        # print(
-        #     f"Successfully added {len(problem_classes)} Rascal problem classes to the graph."
-        # )
 
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
@@ -926,8 +709,6 @@ class Cpp:
             declarations_dict.get("parameters"),
         )
         files_for_methods = add_methods_dict.get("files_for_methods_set")
-
-        # print(declarations_dict.get("parameters"))
 
         add_functions_dict = self.add_functions(
             declaredType_dicts.get("functions"), declarations_dict.get("parameters")
