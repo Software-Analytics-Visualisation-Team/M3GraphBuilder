@@ -862,34 +862,16 @@ class Cpp:
 
         return result
 
-    def get_invokes(self, operations):
-        data = self.parsed["callGraph"]
-        invokes = []
-        for operation in operations.items():
-            for element in data:
-                if re.match(".+\\.", operation[0]):
-                    source = operation[0].replace(".", "/")
-                else:
-                    source = operation[0]
-                if len(element) > 1:
-                    if source in element[0]:
-                        invoke = {}
-                        invoke["source"] = operation[0]
-                        try:
-                            target = re.sub("cpp\\+function:\\/+.+\\/", "", element[1])
-                            if re.match("cpp\\+", target):
-                                target = re.sub("cpp\\+method:\\/+", "", element[1])
-                                target = target.replace("/", ".")
-                            target = re.split("\\(", target)[0]
+    def add_invocations(self, methods, functions):
+        print("Adding invocations")
 
-                            if target in operations.keys():
-                                invoke["target"] = target
-                                invokes.append(invoke)
-                        except:
-                            pass
-                    else:
-                        pass
-        return invokes
+        operations = deepcopy(methods)
+        operations.update(functions)
+        invocations = m3_utils.parse_M3_callGraph(self.parsed, operations)
+        for invoke in invocations:
+            self.add_edges("invokes", invoke)
+
+        print(f"Successfully added {len(invocations)} invocations to the graph.")
 
     def export(self):
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
@@ -952,19 +934,16 @@ class Cpp:
         )
         files_for_functions = add_functions_dict.get("files_for_functions_set")
 
+        self.add_invocations(
+            declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
+        )
+
         files_set = m3_utils.parse_M3_provides(self.parsed)
         files_set.update(files_for_classes)
         files_set.update(files_for_methods)
         files_set.update(files_for_functions)
 
         self.add_files(files_set)
-
-        # print("Adding invokes")
-        # operations = deepcopy(methods)
-        # operations.update(functions)
-        # for invoke in self.get_invokes(operations):
-        #     self.add_edges("invokes", invoke)
-        # print(f"Successfully added {len(operations)} invokes to the graph.")
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))

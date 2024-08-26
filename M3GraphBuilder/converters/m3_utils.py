@@ -9,10 +9,12 @@ def parse_M3_function_Definitions(m3, fragments_dict):
     for rel in function_Definitions_data:
         function_Definitions_fragment = parse_M3_loc_statement(rel[0])
         for key in fragments_dict.keys():
-            if fragments_dict[key].get("simpleName") == function_Definitions_fragment.get(
+            if fragments_dict[key].get(
                 "simpleName"
-            ):
-                fragments_dict[key]["location"] = get_fragment_declaration_location(rel[1])
+            ) == function_Definitions_fragment.get("simpleName"):
+                fragments_dict[key]["location"] = get_fragment_declaration_location(
+                    rel[1]
+                )
 
     for fragment in fragments_dict.items():
         location = fragment[1].get("location")
@@ -48,13 +50,19 @@ def parse_M3_declarations(m3, fragments_dict=None):
 
                     if declarations_fragment is not None:
 
-                        parameters_for_function = parameters_dict.get(declarations_fragment["functionLoc"])
-                        
+                        parameters_for_function = parameters_dict.get(
+                            declarations_fragment["functionLoc"]
+                        )
+
                         if parameters_for_function is None:
-                            parameters_dict[declarations_fragment["functionLoc"]] = [declarations_fragment]
+                            parameters_dict[declarations_fragment["functionLoc"]] = [
+                                declarations_fragment
+                            ]
                         else:
                             parameters_for_function.append(declarations_fragment)
-                            parameters_dict[declarations_fragment["functionLoc"]] = parameters_for_function
+                            parameters_dict[declarations_fragment["functionLoc"]] = (
+                                parameters_for_function
+                            )
                     else:
                         print("[DEBUG] empty parameter processed:")
                         print(rel[0])
@@ -71,7 +79,9 @@ def parse_M3_declarations(m3, fragments_dict=None):
             for fragment in fragments_dict.items():
                 location = fragment[1].get("location")
                 if location is None:
-                    unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[1]
+                    unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[
+                        1
+                    ]
                 else:
                     files_containing_fragments_set.add(location["file"])
 
@@ -199,6 +209,44 @@ def parse_M3_containment(m3):
     return result_dict
 
 
+def parse_M3_callGraph(m3, operations):
+    callGraph_data = m3["callGraph"]
+    invokes = []
+
+    for operation in operations.items():
+        for rel in callGraph_data:
+            # if re.match(".+\\.", operation[0]):
+            #     source = operation[0].replace(".", "/")
+            # else:
+            source = operation[0]
+
+            if source in rel[0]:
+                invoke = {}
+                invoke["source"] = source
+                try:
+                    if re.match(constants.M3_FUNCTION_LOC_SCM, rel[1]) or re.match(
+                        constants.M3_METHOD_LOC_SCM, rel[1]
+                    ):
+                        # target = re.sub("cpp\\+function:\\/+.+\\/", "", rel[1])
+                        fragment = parse_M3_loc_statement(rel[1])
+                        target = fragment.get("simpleName")
+
+                    # elif re.match(constants.M3_METHOD_LOC_SCM, target):
+                    #     target = re.sub("cpp\\+method:\\/+", "", rel[1])
+                    #     target = target.replace("/", ".")
+                    # target = re.split("\\(", target)[0]
+
+                    if target in operations.keys():
+                        invoke["target"] = target
+                        invokes.append(invoke)
+                except:
+                    pass
+            else:
+                pass
+
+    return invokes
+
+
 def parse_M3_extends(m3, fragments):
     extends_data = m3["extends"]
     for fragment in fragments:
@@ -248,7 +296,9 @@ def parse_M3_loc_statement(loc_statement):
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TEMPLATE_TYPE
             fragment["loc"] = loc_path
         case constants.M3_CPP_METHOD_TYPE:  # parse method loc
-            loc_path, fragment_class, fragment_name = parse_rascal_method_loc(loc_statement)
+            loc_path, fragment_class, fragment_name = parse_rascal_method_loc(
+                loc_statement
+            )
             fragment["simpleName"] = fragment_name
             fragment["fragmentType"] = constants.M3_CPP_METHOD_TYPE
             fragment["loc"] = loc_path
@@ -293,7 +343,9 @@ def parse_M3_loc_statement(loc_statement):
             fragment["simpleName"] = simple_name
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
             fragment["loc"] = loc_path
-        case constants.M3_CPP_CLASS_SPECIALIZATION_TYPE:  # parse classSpecialization loc
+        case (
+            constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
+        ):  # parse classSpecialization loc
             loc_path, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_SPECIALIZATION_LOC_SCM, loc_statement
             )
@@ -383,7 +435,12 @@ def parse_rascal_problem_loc(problem_loc):
             else:
                 error_object = ""
 
-            return {"loc_path": loc_path, "id": location_id, "message": error_message, "object": error_object}
+            return {
+                "loc_path": loc_path,
+                "id": location_id,
+                "message": error_message,
+                "object": error_object,
+            }
         else:
             return None  # Invalid format
     except Exception as e:
