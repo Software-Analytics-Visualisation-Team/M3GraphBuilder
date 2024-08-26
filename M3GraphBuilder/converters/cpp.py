@@ -36,7 +36,9 @@ class Cpp:
                 edge_id = hash(content[1].get("simpleName"))
                 source = content[1].get("function")
                 properties = {"weight": 1}
-                target = content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                target = (
+                    content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                )
                 labels = [kind]
 
                 # for parameter in content[1]["parameters"]:
@@ -54,23 +56,23 @@ class Cpp:
                 #             }
                 #         )
 
-                        # if len(content[1]["location"]) != 0:
-                        #     edge_id = (
-                        #         hash(parameter["name"])
-                        #         + hash(content[0])
-                        #         + hash(content[1]["location"].get("file"))
-                        #     )
-                        #     self.lpg["elements"]["edges"].append(
-                        #         {
-                        #             "data": {
-                        #                 "id": edge_id,
-                        #                 "source": content[1]["location"].get("file"),
-                        #                 "properties": {"weight": 1},
-                        #                 "target": content[0] + "." + parameter["name"],
-                        #                 "labels": ["contains"],
-                        #             }
-                        #         }
-                        #     )
+                # if len(content[1]["location"]) != 0:
+                #     edge_id = (
+                #         hash(parameter["name"])
+                #         + hash(content[0])
+                #         + hash(content[1]["location"].get("file"))
+                #     )
+                #     self.lpg["elements"]["edges"].append(
+                #         {
+                #             "data": {
+                #                 "id": edge_id,
+                #                 "source": content[1]["location"].get("file"),
+                #                 "properties": {"weight": 1},
+                #                 "target": content[0] + "." + parameter["name"],
+                #                 "labels": ["contains"],
+                #             }
+                #         }
+                #     )
 
             case "returnType":
                 # if content[0] is not None and content[1]["returnType"] is not None:
@@ -297,7 +299,7 @@ class Cpp:
                     "simpleName": content[1]["simpleName"],
                     "kind": kind,
                     # "vulnerabilities": vulnerabilities,
-                    #"location": content[1]["location"],
+                    # "location": content[1]["location"],
                 }
                 labels = [
                     "Operation",
@@ -310,7 +312,9 @@ class Cpp:
                 #             vulnerabilities.append(issue)
 
             case "parameter":
-                node_id = content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                node_id = (
+                    content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                )
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
@@ -569,7 +573,6 @@ class Cpp:
     #         if field == "msg":
     #             return None
 
-
     # def get_parameters(self, function, location, class_name=None):
     #     data = self.parsed["declarations"]
     #     parameters = []
@@ -738,7 +741,7 @@ class Cpp:
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."
         )
 
-    def add_methods(self, methods, class_simple_names):
+    def add_methods(self, methods, class_simple_names, parameters):
         print("Adding methods")
 
         function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
@@ -797,6 +800,15 @@ class Cpp:
 
             self.add_edges("returnType", m)
             self.add_edges("contains", m)
+
+            method_parameters = parameters.get(m[1].get("functionLoc"))
+            if method_parameters is not None:
+                print(f"adding params for {m[0]}")
+                for param in method_parameters:
+                    self.add_nodes("parameter", param)
+                    self.add_edges("hasParameter", param)
+            else:
+                print(f"method {m} with empty parameters")
         # methods = self.get_methods()
         # for m in methods.items():
         #     self.add_nodes("method", m)
@@ -904,14 +916,15 @@ class Cpp:
         # )
 
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
+        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
 
         add_methods_dict = self.add_methods(
-            declaredType_dicts.get("methods"), class_names
+            declaredType_dicts.get("methods"),
+            class_names,
+            declarations_dict.get("parameters"),
         )
         files_for_methods = add_methods_dict.get("files_for_methods_set")
 
-        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
-        self.add_functions(declaredType_dicts.get("functions"), declarations_dict.get("parameters"))
         # print(declarations_dict.get("parameters"))
 
         files_set = m3_utils.parse_M3_provides(self.parsed)
@@ -919,6 +932,10 @@ class Cpp:
         files_set.update(files_for_methods)
 
         self.add_files(files_set)
+
+        self.add_functions(
+            declaredType_dicts.get("functions"), declarations_dict.get("parameters")
+        )
 
         # print("Adding invokes")
         # operations = deepcopy(methods)
