@@ -513,59 +513,14 @@ class Cpp:
         if self.verbose:
             print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
 
-        function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
-            self.parsed, classes
-        )  # get class locations
+        get_fragment_files_dict = self.get_fragment_files(classes)
+        updated_classes = get_fragment_files_dict.get("fragments")
+        files = get_fragment_files_dict.get("files")
 
-        classes = function_Definitions_dict.get("fragments")
-        unlocated_classes = function_Definitions_dict.get("unlocated_fragments")
-        files_in_function_Definitions = function_Definitions_dict.get("files")
-
-        if self.verbose:
-            print(
-                f"[VERBOSE] Succesfully found the physical locations for {len(classes)} classes in 'functionDefinitions'."
-            )
-            print(
-                f"[VERBOSE] Did not find the physical locations of {len(unlocated_classes)} classes in 'functionDefinitions'."
-            )
-
-        if len(unlocated_classes) > 0:
-            print(
-                f"[VERBOSE] Searching for physical locations of unlocated classes in 'declarations'."
-            )
-
-            declarations_dict = m3_utils.parse_M3_declarations(
-                self.parsed, unlocated_classes
-            )
-            located_classes = declarations_dict.get("fragments")
-            still_unlocated_classes = declarations_dict.get("unlocated_fragments")
-            files_in_declarations = declarations_dict.get("files")
-
-        if self.verbose:
-            if len(still_unlocated_classes) > 0:
-                print(
-                    f"[VERBOSE] Succesfully found the physical locations for {len(located_classes)} classes in 'declarations'."
-                )
-                print(
-                    f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_classes)} classes in 'declarations'."
-                )
-            else:
-                print(
-                    f"[VERBOSE] Succesfully found the physical locations of all unlocated classes in 'declarations'."
-                )
-
-        classes = classes | located_classes
-
-        files_for_classes = set()
-        if len(files_in_function_Definitions) > 0:
-            files_for_classes.update(files_in_function_Definitions)
-        if len(files_in_declarations) > 0:
-            files_for_classes.update(files_in_declarations)
-
-        classes = m3_utils.parse_M3_extends(
-            self.parsed, classes
+        updated_classes_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed, updated_classes
         )  # get class extentions
-        for c in classes.items():
+        for c in updated_classes_with_extensions.items():
             class_names.add(c[0])
 
             self.add_nodes("class", c)
@@ -577,7 +532,7 @@ class Cpp:
 
         result = {
             "class_names_set": class_names,
-            "files_for_classes_set": files_for_classes,
+            "files_for_classes_set": files,
         }
 
         return result
@@ -621,6 +576,9 @@ class Cpp:
     def add_methods(self, methods, class_simple_names, parameters):
         print("Adding methods")
 
+        if self.verbose:
+            print(f"[VERBOSE] Updating declared locations for {len(methods)} methods.")
+
         get_fragment_files_dict = self.get_fragment_files(methods)
         updated_methods = get_fragment_files_dict.get("fragments")
         files_for_methods = get_fragment_files_dict.get("files")
@@ -651,6 +609,11 @@ class Cpp:
 
     def add_functions(self, functions, parameters):
         print("Adding functions")
+
+        if self.verbose:
+            print(
+                f"[VERBOSE] Updating declared locations for {len(functions)} functions."
+            )
 
         get_fragment_files_dict = self.get_fragment_files(functions)
         updated_functions = get_fragment_files_dict.get("fragments")
