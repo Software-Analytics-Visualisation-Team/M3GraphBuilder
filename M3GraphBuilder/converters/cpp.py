@@ -370,7 +370,6 @@ class Cpp:
                 # )
             case (
                 "class"
-                | "namespace"
                 | "template"
                 | "template_type"
                 | "specialization"
@@ -391,6 +390,16 @@ class Cpp:
                 }
                 labels = ["Structure"]
                 # "vulnerable" if len(vulnerabilities) > 0 else "",
+
+            case "namespace":
+                node_id = content[1].get("simpleName")
+                properties = {
+                    "simpleName": content[1].get("simpleName"),
+                    "kind": kind,
+                    # "vulnerabilities": vulnerabilities,
+                    "description": content[1].get("loc"),
+                }
+                labels = ["Container"]
 
             case "Primitive":
                 self.lpg["elements"]["nodes"].append(
@@ -651,43 +660,43 @@ class Cpp:
     def export(self):
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
         self.add_namespaces(containment_dict.get("namespaces"))
-        self.add_translation_units(containment_dict.get("translation_units"))
-        self.add_templates(containment_dict.get("templates"))
-        self.add_template_types(containment_dict.get("template_types"))
-        self.add_specializations(containment_dict.get("specializations"))
-        self.add_partial_specializations(
-            containment_dict.get("partial_specializations")
-        )
+        # self.add_translation_units(containment_dict.get("translation_units"))
+        # self.add_templates(containment_dict.get("templates"))
+        # self.add_template_types(containment_dict.get("template_types"))
+        # self.add_specializations(containment_dict.get("specializations"))
+        # self.add_partial_specializations(
+        #     containment_dict.get("partial_specializations")
+        # )
 
-        add_classes_dict = self.add_classes(containment_dict.get("classes"))
-        class_names = add_classes_dict.get("class_names_set")
-        files_for_classes = add_classes_dict.get("files_for_classes_set")
+        # add_classes_dict = self.add_classes(containment_dict.get("classes"))
+        # class_names = add_classes_dict.get("class_names_set")
+        # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
-        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
-        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
+        # declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
+        # declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
 
-        add_methods_dict = self.add_methods(
-            declaredType_dicts.get("methods"),
-            class_names,
-            declarations_dict.get("parameters"),
-        )
-        files_for_methods = add_methods_dict.get("files_for_methods_set")
+        # add_methods_dict = self.add_methods(
+        #     declaredType_dicts.get("methods"),
+        #     class_names,
+        #     declarations_dict.get("parameters"),
+        # )
+        # files_for_methods = add_methods_dict.get("files_for_methods_set")
 
-        add_functions_dict = self.add_functions(
-            declaredType_dicts.get("functions"), declarations_dict.get("parameters")
-        )
-        files_for_functions = add_functions_dict.get("files_for_functions_set")
+        # add_functions_dict = self.add_functions(
+        #     declaredType_dicts.get("functions"), declarations_dict.get("parameters")
+        # )
+        # files_for_functions = add_functions_dict.get("files_for_functions_set")
 
-        self.add_invocations(
-            declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
-        )
+        # self.add_invocations(
+        #     declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
+        # )
 
-        files_set = m3_utils.parse_M3_provides(self.parsed)
-        files_set.update(files_for_classes)
-        files_set.update(files_for_methods)
-        files_set.update(files_for_functions)
+        # files_set = m3_utils.parse_M3_provides(self.parsed)
+        # files_set.update(files_for_classes)
+        # files_set.update(files_for_methods)
+        # files_set.update(files_for_functions)
 
-        self.add_files(files_set)
+        # self.add_files(files_set)
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))
