@@ -2,6 +2,10 @@ from copy import deepcopy
 import json
 import M3GraphBuilder.converters.constants as constants
 import M3GraphBuilder.converters.m3_utils as m3_utils
+import logging
+
+logger = logging.getLogger("cpp_logger")
+logging.basicConfig(filename="debug_logs.log", encoding="utf-8", level=logging.DEBUG)
 
 
 class Cpp:
@@ -151,21 +155,23 @@ class Cpp:
                         or content[1].get("fragmentType")
                         is constants.M3_CPP_NAMESPACE_TYPE
                     ):
-                        children_namespaces = content[1].get("contains")
-                        if children_namespaces is not None:
-                            for child_namespace in children_namespaces:
-                                edge_id = hash(content[0]) + hash(child_namespace)
-                            self.lpg["elements"]["edges"].append(
-                                {
-                                    "data": {
-                                        "id": edge_id,
-                                        "source": content[1].get("simpleName"),
-                                        "properties": {"weight": 1},
-                                        "target": child_namespace,
-                                        "labels": [kind],
+                        contained_fragments = content[1].get("contains")
+                        if contained_fragments is not None:
+
+                            for child_fragment in contained_fragments:
+                                edge_id = hash(content[0]) + hash(child_fragment)
+
+                                self.lpg["elements"]["edges"].append(
+                                    {
+                                        "data": {
+                                            "id": edge_id,
+                                            "source": content[1].get("loc"),
+                                            "properties": {"weight": 1},
+                                            "target": child_fragment,
+                                            "labels": [kind],
+                                        }
                                     }
-                                }
-                            )
+                                )
                     # Method relationships
                     elif (
                         content[1].get("fragmentType") is constants.M3_CPP_METHOD_TYPE
@@ -279,7 +285,7 @@ class Cpp:
                 labels = [["Problem"]]
 
             case "translation_unit":
-                node_id = content[1].get("simpleName")
+                node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "description": content[1].get("loc"),
@@ -348,26 +354,9 @@ class Cpp:
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
                     "description": content[1].get("loc"),
-                    # "vulnerabilities": vulnerabilities,
                 }
                 labels = ["Operation"]
-                # "vulnerable" if len(vulnerabilities) > 0 else "",
-                # self.lpg["elements"]["nodes"].append(
-                #     {
-                #         "data": {
-                #             "id": content[0],
-                #             "properties": {
-                #                 "simpleName": content[1]["methodName"],
-                #                 "kind": kind,
-                #                 "vulnerabilities": vulnerabilities,
-                #             },
-                #             "labels": [
-                #                 "Operation",
-                #                 # "vulnerable" if len(vulnerabilities) > 0 else "",
-                #             ],
-                #         }
-                #     }
-                # )
+
             case (
                 "class"
                 | "template"
@@ -375,29 +364,20 @@ class Cpp:
                 | "specialization"
                 | "partial_specialization"
             ):
-                # print(content)
-                # vulnerabilities = []
-                # if self.issues is not None:
-                #     for issue in self.issues:
-                #         if issue["target"]["script"] == content[0]:
-                #             vulnerabilities.append(issue)
-                node_id = content[1].get("simpleName")
+                node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
-                    # "vulnerabilities": vulnerabilities,
-                    "description": content[1].get("loc"),
+                    "description": content[1].get("simpleName"),
                 }
                 labels = ["Structure"]
-                # "vulnerable" if len(vulnerabilities) > 0 else "",
 
             case "namespace":
-                node_id = content[1].get("simpleName")
+                node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
-                    "kind": kind,
-                    # "vulnerabilities": vulnerabilities,
-                    "description": content[1].get("loc"),
+                    "kind": "package",
+                    "description": content[1].get("simpleName"),
                 }
                 labels = ["Container"]
 
@@ -488,7 +468,6 @@ class Cpp:
 
     def add_namespaces(self, namespaces):
         print("Adding namespaces")
-
         for n in namespaces.items():
             self.add_nodes("namespace", n)
             if n[1].get("contains") is not None:
@@ -518,16 +497,17 @@ class Cpp:
     def add_classes(self, classes):
         print("Adding classes")
         class_names = set()
+        files = []
 
         if self.verbose:
             print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
 
-        get_fragment_files_dict = self.get_fragment_files(classes)
-        updated_classes = get_fragment_files_dict.get("fragments")
-        files = get_fragment_files_dict.get("files")
+        # get_fragment_files_dict = self.get_fragment_files(classes)
+        # updated_classes = get_fragment_files_dict.get("fragments")
+        # files = get_fragment_files_dict.get("files")
 
         updated_classes_with_extensions = m3_utils.parse_M3_extends(
-            self.parsed, updated_classes
+            self.parsed, classes
         )  # get class extentions
         for c in updated_classes_with_extensions.items():
             class_names.add(c[0])
@@ -535,7 +515,7 @@ class Cpp:
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
                 self.add_edges("specializes", c)
-            self.add_edges("contains", c)
+            # self.add_edges("contains", c)
 
         print(f"Successfully added {len(classes)} classes to the graph.")
 
@@ -659,16 +639,22 @@ class Cpp:
 
     def export(self):
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
-        self.add_namespaces(containment_dict.get("namespaces"))
-        # self.add_translation_units(containment_dict.get("translation_units"))
-        # self.add_templates(containment_dict.get("templates"))
-        # self.add_template_types(containment_dict.get("template_types"))
-        # self.add_specializations(containment_dict.get("specializations"))
-        # self.add_partial_specializations(
-        #     containment_dict.get("partial_specializations")
-        # )
+        self.add_namespaces(containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE))
+        # self.add_translation_units(containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE))
+        self.add_templates(containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE))
+        self.add_template_types(
+            containment_dict.get(constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE)
+        )
+        self.add_specializations(
+            containment_dict.get(constants.M3_CPP_CLASS_SPECIALIZATION_TYPE)
+        )
+        self.add_partial_specializations(
+            containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE)
+        )
 
-        # add_classes_dict = self.add_classes(containment_dict.get("classes"))
+        add_classes_dict = self.add_classes(
+            containment_dict.get(constants.M3_CPP_CLASS_TYPE)
+        )
         # class_names = add_classes_dict.get("class_names_set")
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
