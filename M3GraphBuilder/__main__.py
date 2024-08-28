@@ -95,10 +95,13 @@ def main():
                 print("Validating graph:")
                 print("[1/1] Checking for nonexistent edge sources and targets.")
                 missing_node_ids = find_node_discrpenecies(graph_path)
-                print(
-                    f"[1/1] Found {len(missing_node_ids)} nonexistent nodes with IDs:"
-                )
-                print(missing_node_ids)
+                if len(missing_node_ids) > 0:
+                    print(
+                        f"[1/1] Found {len(missing_node_ids)} edges from/to nonexistent nodes with the following IDs:"
+                    )
+                    print(missing_node_ids)
+                else:
+                    print("[1/1] All nodes in edges accounted for.")
     else:
         print("Error: Missing value: --model_path")
 
