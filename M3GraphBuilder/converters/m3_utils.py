@@ -4,7 +4,11 @@ import logging
 
 logger = logging.getLogger("m3_utils_logger")
 logging.basicConfig(
-    filename="m3_utils_debug_logs.log", encoding="utf-8", level=logging.DEBUG
+    filename="debug_logs.log",
+    format="%(asctime)s %(levelname)-8s %(message)s",
+    encoding="utf-8",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.DEBUG,
 )
 
 
@@ -278,15 +282,26 @@ def parse_M3_callGraph(m3, operations):
     return invokes
 
 
-def parse_M3_extends(m3, fragments):
+def parse_M3_extends(m3, fragments, fragments_type):
+    extension_counter = 0
+
+    logger.debug("Adding extensions for structure type: %s", fragments_type)
+
     extends_data = m3["extends"]
-    for fragment in fragments:
+
+    for fragment in fragments.items():
         for rel in extends_data:
             extending_fragment = parse_M3_loc_statement(rel[0])
-            if fragment == extending_fragment:
+            if fragment[1].get("loc") == extending_fragment.get("loc"):
                 base_fragment = parse_M3_loc_statement(rel[1])
-                fragment["extends"] = base_fragment["simpleName"]
-                fragments[fragment["simpleName"]] = fragment
+                if fragment[1].get("extends") is None:
+                    fragment[1]["extends"] = [base_fragment["loc"]]
+                else:
+                    fragment[1]["extends"].append(base_fragment["loc"])
+                fragments[fragment[1]["loc"]] = fragment[1]
+                extension_counter = extension_counter + 1
+
+    logger.debug("Added %s extensions", extension_counter)
 
     return fragments
 

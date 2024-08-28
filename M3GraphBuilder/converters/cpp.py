@@ -52,18 +52,19 @@ class Cpp:
                 labels = [kind]
 
             case "specializes":
-                edge_id = hash(content[0]) + hash(content[1]["extends"])
-                self.lpg["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": edge_id,
-                            "source": content[0],
-                            "properties": {"weight": 1},
-                            "target": content[1]["extends"],
-                            "labels": [kind],
+                for base_fragment in content[1]["extends"]:
+                    edge_id = hash(content[0]) + hash(base_fragment)
+                    self.lpg["elements"]["edges"].append(
+                        {
+                            "data": {
+                                "id": edge_id,
+                                "source": content[1].get("loc"),
+                                "properties": {"weight": 1},
+                                "target": base_fragment,
+                                "labels": [kind],
+                            }
                         }
-                    }
-                )
+                    )
 
             case "hasVariable":
                 for variable in content[1]["variables"]:
@@ -267,10 +268,7 @@ class Cpp:
 
             case "function":
                 node_id = content[0]
-                properties = {
-                    "simpleName": content[1]["simpleName"],
-                    "kind": kind
-                }
+                properties = {"simpleName": content[1]["simpleName"], "kind": kind}
                 labels = ["Operation"]
 
             case "parameter":
@@ -326,7 +324,7 @@ class Cpp:
                         }
                     }
                 )
-                
+
             case "variable":
                 for variable in content[1]["variables"]:
                     if variable is not None and variable != "":
@@ -443,7 +441,7 @@ class Cpp:
         # files = get_fragment_files_dict.get("files")
 
         updated_classes_with_extensions = m3_utils.parse_M3_extends(
-            self.parsed, classes
+            self.parsed, classes, constants.M3_CPP_CLASS_TYPE
         )  # get class extentions
         for c in updated_classes_with_extensions.items():
             class_names.add(c[0])
@@ -465,24 +463,45 @@ class Cpp:
     def add_templates(self, templates):
         print("Adding templates")
 
-        for temp in templates.items():
+        updated_templates_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed, templates, constants.M3_CPP_CLASS_TEMPLATE_TYPE
+        )
+
+        for temp in updated_templates_with_extensions.items():
             self.add_nodes("template", temp)
+
+            if temp[1].get("extends") is not None:
+                self.add_edges("specializes", temp)
 
         print(f"Successfully added {len(templates)} templates to the graph.")
 
     def add_template_types(self, template_types):
         print("Adding template types")
 
-        for temp_type in template_types.items():
+        updated_template_types_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed, template_types, constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
+        )
+
+        for temp_type in updated_template_types_with_extensions.items():
             self.add_nodes("template_type", temp_type)
+
+            if temp_type[1].get("extends") is not None:
+                self.add_edges("specializes", temp_type)
 
         print(f"Successfully added {len(template_types)} template types to the graph.")
 
     def add_specializations(self, specializations):
         print("Adding specializations")
 
-        for spec in specializations.items():
+        updated_specializations_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed, specializations, constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
+        )
+
+        for spec in updated_specializations_with_extensions.items():
             self.add_nodes("specialization", spec)
+
+            if spec[1].get("extends") is not None:
+                self.add_edges("specializes", spec)
 
         print(
             f"Successfully added {len(specializations)} specializations to the graph."
@@ -491,8 +510,17 @@ class Cpp:
     def add_partial_specializations(self, partial_specializations):
         print("Adding partial specializations")
 
-        for part_spec in partial_specializations.items():
+        updated_partial_specializations_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed,
+            partial_specializations,
+            constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
+        )
+
+        for part_spec in updated_partial_specializations_with_extensions.items():
             self.add_nodes("partial_specialization", part_spec)
+
+            if part_spec[1].get("extends") is not None:
+                self.add_edges("specializes", part_spec)
 
         print(
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."
