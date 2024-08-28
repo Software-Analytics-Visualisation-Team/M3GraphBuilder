@@ -44,41 +44,7 @@ class Cpp:
                 )
                 labels = [kind]
 
-                # for parameter in content[1]["parameters"]:
-                #     if parameter is not None and parameter != "":
-                #         edge_id = hash(parameter["name"]) + hash(content[0])
-                #         self.lpg["elements"]["edges"].append(
-                #             {
-                #                 "data": {
-                #                     "id": edge_id,
-                #                     "source": content[0],
-                #                     "properties": {"weight": 1},
-                #                     "target": content[0] + "." + parameter["name"],
-                #                     "labels": [kind],
-                #                 }
-                #             }
-                #         )
-
-                # if len(content[1]["location"]) != 0:
-                #     edge_id = (
-                #         hash(parameter["name"])
-                #         + hash(content[0])
-                #         + hash(content[1]["location"].get("file"))
-                #     )
-                #     self.lpg["elements"]["edges"].append(
-                #         {
-                #             "data": {
-                #                 "id": edge_id,
-                #                 "source": content[1]["location"].get("file"),
-                #                 "properties": {"weight": 1},
-                #                 "target": content[0] + "." + parameter["name"],
-                #                 "labels": ["contains"],
-                #             }
-                #         }
-                #     )
-
             case "returnType":
-                # if content[0] is not None and content[1]["returnType"] is not None:
                 edge_id = hash(content[0]) + hash(content[1]["returnType"])
                 source = content[0]
                 properties = {"weight": 1}
@@ -223,6 +189,7 @@ class Cpp:
                         labels = ["contains"]
                 except Exception as e:
                     print("Problem adding 'contains' relationship for ", content)
+
             case "type":
                 content = list(zip(content.keys(), content.values()))[0]
                 id = hash(content[0]) - hash(content[1]["name"])
@@ -302,19 +269,9 @@ class Cpp:
                 node_id = content[0]
                 properties = {
                     "simpleName": content[1]["simpleName"],
-                    "kind": kind,
-                    # "vulnerabilities": vulnerabilities,
-                    # "location": content[1]["location"],
+                    "kind": kind
                 }
-                labels = [
-                    "Operation",
-                    # "vulnerable" if len(vulnerabilities) > 0 else "",
-                ]
-                # vulnerabilities = []
-                # if self.issues is not None:
-                #     for issue in self.issues:
-                #         if issue["target"]["script"] == content[0]:
-                #             vulnerabilities.append(issue)
+                labels = ["Operation"]
 
             case "parameter":
                 node_id = (
@@ -326,29 +283,7 @@ class Cpp:
                 }
                 labels = ["Variable"]
 
-                # for parameter in content[1]["parameters"]:
-                #     if parameter is not None and parameter != "":
-                #         self.lpg["elements"]["nodes"].append(
-                #             {
-                #                 "data": {
-                #                     "id": content[0] + "." + parameter["name"],
-                #                     "properties": {
-                #                         "simpleName": parameter["name"],
-                #                         "kind": kind,
-                #                     },
-                #                     "labels": ["Variable"],
-                #                 }
-                #             }
-                #         )
-                #         if "type" in parameter.keys() and parameter["type"] is not None:
-                #             self.add_edges("type", {content[0]: parameter})
             case "method":
-                # vulnerabilities = []
-                # if self.issues is not None:
-                #     for issue in self.issues:
-                #         if issue["target"]["script"] == content[0]:
-                #             vulnerabilities.append(issue)
-                # if content[0] != "" and content[1] != "":
                 node_id = content[0]
                 properties = {
                     "simpleName": content[1].get("simpleName"),
@@ -391,6 +326,7 @@ class Cpp:
                         }
                     }
                 )
+                
             case "variable":
                 for variable in content[1]["variables"]:
                     if variable is not None and variable != "":
