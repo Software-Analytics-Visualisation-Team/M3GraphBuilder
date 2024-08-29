@@ -30,9 +30,9 @@ class Cpp:
         match kind:
             case "hasScript":
                 edge_id = hash(content[0])
-                source = content[1].get("class")
+                source = content[1].get("parent")
                 properties = {"weight": 1}
-                target = content[0]
+                target = content[1].get("loc")
                 labels = [kind]
 
             case "hasParameter":
@@ -282,7 +282,7 @@ class Cpp:
                 labels = ["Variable"]
 
             case "method":
-                node_id = content[0]
+                node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
@@ -430,8 +430,7 @@ class Cpp:
 
     def add_classes(self, classes):
         print("Adding classes")
-        class_names = set()
-        files = []
+        # files = []
 
         if self.verbose:
             print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
@@ -444,8 +443,6 @@ class Cpp:
             self.parsed, classes, constants.M3_CPP_CLASS_TYPE
         )  # get class extentions
         for c in updated_classes_with_extensions.items():
-            class_names.add(c[0])
-
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
                 self.add_edges("specializes", c)
@@ -453,12 +450,12 @@ class Cpp:
 
         print(f"Successfully added {len(classes)} classes to the graph.")
 
-        result = {
-            "class_names_set": class_names,
-            "files_for_classes_set": files,
-        }
+        # result = {
+        #     "simplified_class_dict": simplified_class,
+        #     "files_for_classes_set": files,
+        # }
 
-        return result
+        # return result
 
     def add_templates(self, templates):
         print("Adding templates")
@@ -526,7 +523,7 @@ class Cpp:
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."
         )
 
-    def add_methods(self, methods, class_simple_names, parameters):
+    def add_methods(self, methods, structures_dict, parameters):
         print("Adding methods")
 
         if self.verbose:
@@ -538,12 +535,16 @@ class Cpp:
 
         for m in updated_methods.items():
             self.add_nodes("method", m)
+            # logger.debug("method parent %s", m[1].get("parent"))
+            if m[1].get("parent") in structures_dict.keys():
+                # logger.debug("parent successfully recognized")
+                parent_fragment = structures_dict.get(m[1]["parent"])
 
-            if m[1].get("class") in class_simple_names:
+                m[1]["parent"] = parent_fragment.get("loc")
                 self.add_edges("hasScript", m)
 
-            self.add_edges("returnType", m)
-            self.add_edges("contains", m)
+            # self.add_edges("returnType", m)
+            # self.add_edges("contains", m)
 
             method_parameters = parameters.get(m[1].get("functionLoc"))
             if method_parameters is not None:
@@ -605,31 +606,42 @@ class Cpp:
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
         self.add_namespaces(containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE))
         # self.add_translation_units(containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE))
-        self.add_templates(containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE))
-        self.add_template_types(
-            containment_dict.get(constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE)
-        )
-        self.add_specializations(
-            containment_dict.get(constants.M3_CPP_CLASS_SPECIALIZATION_TYPE)
-        )
-        self.add_partial_specializations(
-            containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE)
-        )
 
-        add_classes_dict = self.add_classes(
-            containment_dict.get(constants.M3_CPP_CLASS_TYPE)
+        templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
+        self.add_templates(templates_dict)
+        structures_dict = deepcopy(templates_dict)
+
+        template_types_dict = containment_dict.get(
+            constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
         )
-        # class_names = add_classes_dict.get("class_names_set")
+        self.add_template_types(template_types_dict)
+
+        specializations_dict = containment_dict.get(
+            constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
+        )
+        self.add_specializations(specializations_dict)
+        structures_dict.update(specializations_dict)
+
+        partial_specializations_dict = containment_dict.get(
+            constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
+        )
+        self.add_partial_specializations(partial_specializations_dict)
+        structures_dict.update(specializations_dict)
+
+        classes_dict = containment_dict.get(constants.M3_CPP_CLASS_TYPE)
+        self.add_classes(classes_dict)
+        structures_dict.update(classes_dict)
+
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
-        # declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
-        # declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
+        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
+        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
 
-        # add_methods_dict = self.add_methods(
-        #     declaredType_dicts.get("methods"),
-        #     class_names,
-        #     declarations_dict.get("parameters"),
-        # )
+        add_methods_dict = self.add_methods(
+            declaredType_dicts.get("methods"),
+            structures_dict,
+            declarations_dict.get("parameters"),
+        )
         # files_for_methods = add_methods_dict.get("files_for_methods_set")
 
         # add_functions_dict = self.add_functions(
