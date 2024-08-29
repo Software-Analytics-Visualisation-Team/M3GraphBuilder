@@ -58,9 +58,9 @@ class Cpp:
                         {
                             "data": {
                                 "id": edge_id,
-                                "source": content[1].get("loc"),
+                                "source": base_fragment,
                                 "properties": {"weight": 1},
-                                "target": base_fragment,
+                                "target": content[1].get("loc"),
                                 "labels": [kind],
                             }
                         }
