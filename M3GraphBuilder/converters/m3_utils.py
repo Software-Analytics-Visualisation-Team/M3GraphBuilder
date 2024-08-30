@@ -133,13 +133,13 @@ def parse_M3_declaredType(m3):
                 fragment["returnType"] = get_fragment_type(
                     fragment_info, get_fragment_type_key(fragment_info)
                 )
-                methods_dict[fragment["simpleName"]] = fragment
+                methods_dict[fragment["loc"]] = fragment
             case constants.M3_CPP_FUNCTION_TYPE:
                 fragment_info = rel[1]["returnType"]
                 fragment["returnType"] = get_fragment_type(
                     fragment_info, get_fragment_type_key(fragment_info)
                 )
-                functions_dict[fragment["simpleName"]] = fragment
+                functions_dict[fragment["loc"]] = fragment
             case constants.M3_CPP_VARIABLE_TYPE:
                 fragment["type"] = get_fragment_type(
                     rel[1], get_fragment_type_key(rel[1])
@@ -253,7 +253,7 @@ def parse_M3_callGraph(m3, operations):
             # if re.match(".+\\.", operation[0]):
             #     source = operation[0].replace(".", "/")
             # else:
-            source = operation[0]
+            source = operation[1].get("loc")
 
             if source in rel[0]:
                 invoke = {}
@@ -264,7 +264,7 @@ def parse_M3_callGraph(m3, operations):
                     ):
                         # target = re.sub("cpp\\+function:\\/+.+\\/", "", rel[1])
                         fragment = parse_M3_loc_statement(rel[1])
-                        target = fragment.get("simpleName")
+                        target = fragment.get("loc")
 
                     # elif re.match(constants.M3_METHOD_LOC_SCM, target):
                     #     target = re.sub("cpp\\+method:\\/+", "", rel[1])
@@ -314,57 +314,58 @@ def parse_M3_loc_statement(loc_statement):
 
     match fragment_type:
         case constants.M3_CPP_CLASS_TYPE:  # parse class loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_CONSTRUCTOR_TYPE:  # parse constructor loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_CONSTRUCTOR_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CONSTRUCTOR_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_FUNCTION_TYPE:  # parse function loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_FUNCTION_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TYPE
             fragment["simpleName"] = simple_name
+            fragment["parent"] = fragment_parent
         case constants.M3_CPP_FUNCTION_TEMPLATE_TYPE:  # parse functionTemplate loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_FUNCTION_TEMPLATE_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TEMPLATE_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_METHOD_TYPE:  # parse method loc
-            loc_path, fragment_parent, fragment_name = parse_rascal_method_loc(
-                loc_statement
+            loc_path, fragment_parent, fragment_name = parse_rascal_loc(
+                constants.M3_METHOD_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_METHOD_TYPE
             fragment["simpleName"] = fragment_name
             fragment["parent"] = fragment_parent
         case constants.M3_CPP_NAMESPACE_TYPE:  # parse namespace loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_NAMESPACE_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_NAMESPACE_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_DEFERRED_CLASS_TYPE:  # parse deferredClassInstance loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_DEFFERED_CLASS_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_DEFERRED_CLASS_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_CLASS_TEMPLATE_TYPE:  # parse classTemplate loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_TEMPLATE_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
@@ -373,7 +374,7 @@ def parse_M3_loc_statement(loc_statement):
         case (
             constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
         ):  # parse templateTypeParameter loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
@@ -382,7 +383,7 @@ def parse_M3_loc_statement(loc_statement):
         case (
             constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
         ):  # parse classTemplatePartialSpec loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_TEMPLATE_PARTIAL_SPEC_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
@@ -391,14 +392,14 @@ def parse_M3_loc_statement(loc_statement):
         case (
             constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
         ):  # parse classSpecialization loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_CLASS_SPECIALIZATION_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_TRANSLATION_UNIT_TYPE:  # parse translationUnit loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_TRANSLATION_UNIT_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
@@ -413,14 +414,14 @@ def parse_M3_loc_statement(loc_statement):
             fragment["fragmentType"] = constants.M3_PROBLEM_TYPE
             fragment["loc"] = parsed_problem_loc.get("loc_path")
         case constants.M3_CPP_VARIABLE_TYPE:  # parse variable loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_VARIABLE_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_VARIABLE_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_PARAMETER_TYPE:  # parse parameter loc
-            loc_path, simple_name = parse_rascal_loc(
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 constants.M3_PARAMETER_LOC_SCM, loc_statement
             )
             fragment["loc"] = loc_path
@@ -436,32 +437,17 @@ def parse_rascal_loc(schema, loc):
 
     loc_path = re.sub(schema, "", loc)
     parsed_loc = re.split("/", loc_path)
+    loc_fragment_parent = "/".join(parsed_loc[:-1])
     loc_fragment = parsed_loc[-1]
 
     if loc_fragment == "":
+        loc_fragment_parent = "/".join(parsed_loc[:-2])
         loc_fragment = parsed_loc[-2]
 
     if re.search(r"\(|\)", loc_fragment):
         loc_fragment = re.split("\\(", loc_fragment)[0]
 
-    return loc_path, loc_fragment
-
-
-def parse_rascal_method_loc(method_loc):
-
-    loc_path = re.sub(constants.M3_METHOD_LOC_SCM, "", method_loc)
-    parsed_loc = re.split("/", loc_path)
-    method_loc_parent = "/".join(parsed_loc[:-1])
-    method_loc_fragment = parsed_loc[-1]
-
-    if method_loc_fragment == "":
-        method_loc_parent = "/".join(parsed_loc[:-2])
-        method_loc_fragment = parsed_loc[-2]
-
-    if re.search(r"\(|\)", method_loc_fragment):
-        method_loc_fragment = re.split("\\(", method_loc_fragment)[0]
-
-    return loc_path, method_loc_parent, method_loc_fragment
+    return loc_path, loc_fragment_parent, loc_fragment
 
 
 def parse_rascal_problem_loc(problem_loc):

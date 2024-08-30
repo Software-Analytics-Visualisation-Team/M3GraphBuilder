@@ -267,8 +267,12 @@ class Cpp:
                 labels = ["Container"]
 
             case "function":
-                node_id = content[0]
-                properties = {"simpleName": content[1]["simpleName"], "kind": kind}
+                node_id = content[1].get("loc")
+                properties = {
+                    "simpleName": content[1]["simpleName"],
+                    "description": content[1]["fragmentType"],
+                    "kind": kind,
+                }
                 labels = ["Operation"]
 
             case "parameter":
@@ -529,11 +533,11 @@ class Cpp:
         if self.verbose:
             print(f"[VERBOSE] Updating declared locations for {len(methods)} methods.")
 
-        get_fragment_files_dict = self.get_fragment_files(methods)
-        updated_methods = get_fragment_files_dict.get("fragments")
-        files_for_methods = get_fragment_files_dict.get("files")
+        # get_fragment_files_dict = self.get_fragment_files(methods)
+        # updated_methods = get_fragment_files_dict.get("fragments")
+        # files_for_methods = get_fragment_files_dict.get("files")
 
-        for m in updated_methods.items():
+        for m in methods.items():
             self.add_nodes("method", m)
             # logger.debug("method parent %s", m[1].get("parent"))
             if m[1].get("parent") in structures_dict.keys():
@@ -557,11 +561,11 @@ class Cpp:
 
         print(f"Successfully added {len(methods)} methods to the graph.")
 
-        result = {"files_for_methods_set": files_for_methods}
+        # result = {"files_for_methods_set": files_for_methods}
 
-        return result
+        # return result
 
-    def add_functions(self, functions, parameters):
+    def add_functions(self, functions, containers_dict, parameters):
         print("Adding functions")
 
         if self.verbose:
@@ -569,27 +573,35 @@ class Cpp:
                 f"[VERBOSE] Updating declared locations for {len(functions)} functions."
             )
 
-        get_fragment_files_dict = self.get_fragment_files(functions)
-        updated_functions = get_fragment_files_dict.get("fragments")
-        files_for_functions = get_fragment_files_dict.get("files")
+        # get_fragment_files_dict = self.get_fragment_files(functions)
+        # updated_functions = get_fragment_files_dict.get("fragments")
+        # files_for_functions = get_fragment_files_dict.get("files")
 
-        for f in updated_functions.items():
+        for f in functions.items():
             self.add_nodes("function", f)
-            self.add_edges("contains", f)
+
+            if f[1].get("parent") in containers_dict.keys():
+                # logger.debug("parent successfully recognized")
+                parent_fragment = containers_dict.get(f[1]["parent"])
+
+                f[1]["parent"] = parent_fragment.get("loc")
+                self.add_edges("hasScript", f)
+
+            # self.add_edges("contains", f)
             function_parameters = parameters.get(f[1].get("functionLoc"))
+
             if function_parameters is not None:
-                # print(f"adding params for {f[0]}")
                 for param in function_parameters:
                     self.add_nodes("parameter", param)
                     self.add_edges("hasParameter", param)
-            # else:
-            #     print(f"function {f} with empty parameters")
+            else:
+                logger.debug("function %s with empty parameters", f)
 
         print(f"Successfully added {len(functions)} functions to the graph.")
 
-        result = {"files_for_functions_set": files_for_functions}
+        # result = {"files_for_functions_set": files_for_functions}
 
-        return result
+        # return result
 
     def add_invocations(self, methods, functions):
         print("Adding invocations")
@@ -604,7 +616,9 @@ class Cpp:
 
     def export(self):
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
-        self.add_namespaces(containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE))
+
+        namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
+        self.add_namespaces(namespaces_dict)
         # self.add_translation_units(containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE))
 
         templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
@@ -644,14 +658,16 @@ class Cpp:
         )
         # files_for_methods = add_methods_dict.get("files_for_methods_set")
 
-        # add_functions_dict = self.add_functions(
-        #     declaredType_dicts.get("functions"), declarations_dict.get("parameters")
-        # )
+        self.add_functions(
+            declaredType_dicts.get("functions"),
+            namespaces_dict,
+            declarations_dict.get("parameters"),
+        )
         # files_for_functions = add_functions_dict.get("files_for_functions_set")
 
-        # self.add_invocations(
-        #     declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
-        # )
+        self.add_invocations(
+            declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
+        )
 
         # files_set = m3_utils.parse_M3_provides(self.parsed)
         # files_set.update(files_for_classes)
