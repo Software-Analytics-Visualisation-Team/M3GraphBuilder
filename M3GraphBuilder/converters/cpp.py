@@ -2,10 +2,10 @@ from copy import deepcopy
 import json
 import M3GraphBuilder.converters.constants as constants
 import M3GraphBuilder.converters.m3_utils as m3_utils
-import logging
+import M3GraphBuilder.logging_utils as logging
 
-logger = logging.getLogger("cpp_logger")
-logging.basicConfig(filename="debug_logs.log", encoding="utf-8", level=logging.DEBUG)
+
+logger = logging.setup_logger("cpp_logger", "cpp_logfile.log")
 
 
 class Cpp:
@@ -155,10 +155,10 @@ class Cpp:
                             target = content[0]
                             labels = ["contains"]
                         except:
-                            print(
+                            logger.info(
                                 f"Failed adding contains relationship between {source} and {target}"
                             )
-                            print("Trying backup.")
+                            logger.info("Trying backup.")
                             source = next(
                                 item
                                 for item in self.lpg["elements"]["edges"]
@@ -177,7 +177,9 @@ class Cpp:
                                 target = content[0]
                                 labels = ["contains"]
                             else:
-                                print(f"Failed to add a contains edge for {content}")
+                                logger.info(
+                                    f"Failed to add a contains edge for {content}"
+                                )
                                 return
                     # Classes relationships
                     elif content[1].get("location") is not None:
@@ -189,7 +191,7 @@ class Cpp:
                         target = content[0]
                         labels = ["contains"]
                 except Exception as e:
-                    print("Problem adding 'contains' relationship for ", content)
+                    logger.info("Problem adding 'contains' relationship for ", content)
 
             case "type":
                 content = list(zip(content.keys(), content.values()))[0]
@@ -217,8 +219,8 @@ class Cpp:
                 {"data": {"id": node_id, "properties": properties, "labels": labels}}
             )
         except Exception as e:
-            print(f"Problem adding {labels} node relationship for ", node_id)
-            print(e)
+            logger.info(f"Problem adding {labels} node relationship for ", node_id)
+            logger.info(e)
 
     def append_edge(self, edge_id, source, properties, target, labels):
         try:
@@ -234,13 +236,14 @@ class Cpp:
                 }
             )
         except Exception as e:
-            print(f"Problem adding edge with id: {edge_id} to the graph")
-            print(e)
+            logger.info(f"Problem adding edge with id: {edge_id} to the graph")
+            logger.info(e)
 
     def add_nodes(self, kind, content):
         node_id = {}
         properties = {}
         labels = []
+        location = content[1]["physicalLoc"]["file"] if content[1].get("physicalLoc") is not None else content[1]["loc"]
 
         match kind:
             case "problem":
@@ -267,10 +270,13 @@ class Cpp:
                 labels = ["Container"]
 
             case "function":
+
+                
+
                 node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1]["simpleName"],
-                    "description": content[1]["fragmentType"],
+                    "description": location,
                     "kind": kind,
                 }
                 labels = ["Operation"]
@@ -282,6 +288,7 @@ class Cpp:
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
+                    "description": location
                 }
                 labels = ["Variable"]
 
@@ -290,7 +297,7 @@ class Cpp:
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
-                    "description": content[1].get("loc"),
+                    "description": location,
                 }
                 labels = ["Operation"]
 
@@ -305,7 +312,7 @@ class Cpp:
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
-                    "description": content[1].get("simpleName"),
+                    "description": location,
                 }
                 labels = ["Structure"]
 
@@ -314,7 +321,7 @@ class Cpp:
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": "package",
-                    "description": content[1].get("simpleName"),
+                    "description": location,
                 }
                 labels = ["Container"]
 
@@ -323,7 +330,10 @@ class Cpp:
                     {
                         "data": {
                             "id": content,
-                            "properties": {"simpleName": content, "kind": kind},
+                            "properties": {
+                                "simpleName": content, 
+                                "kind": kind, 
+                                "description": location},
                             "labels": [kind],
                         }
                     }
@@ -358,35 +368,33 @@ class Cpp:
         files_in_function_Definitions = function_Definitions_dict.get("files")
 
         if self.verbose:
-            print(
+            logger.info(
                 f"[VERBOSE] Succesfully found the physical locations for {len(fragments_updated_from_Definitions) - len(unlocated_fragments)} fragments in 'functionDefinitions'."
             )
-            print(
+            logger.info(
                 f"[VERBOSE] Did not find the physical locations of {len(unlocated_fragments)} fragments in 'functionDefinitions'."
             )
 
         if len(unlocated_fragments) > 0:
-            print(
+            logger.info(
                 f"[VERBOSE] Searching for physical locations of unlocated fragments in 'declarations'."
             )
 
-            declarations_dict = m3_utils.parse_M3_declarations(
-                self.parsed, unlocated_fragments
-            )
+            declarations_dict = m3_utils.parse_M3_declarations(self.parsed, fragments)
             fragments_updated_from_Declarations = declarations_dict.get("fragments")
             still_unlocated_fragments = declarations_dict.get("unlocated_fragments")
             files_in_declarations = declarations_dict.get("files")
 
         if self.verbose:
             if len(still_unlocated_fragments) > 0:
-                print(
+                logger.info(
                     f"[VERBOSE] Succesfully found the physical locations for {len(fragments_updated_from_Declarations) - len(still_unlocated_fragments)} fragments in 'declarations'."
                 )
-                print(
+                logger.info(
                     f"[VERBOSE] Did not find the physical locations of {len(still_unlocated_fragments)} fragments in 'declarations'."
                 )
             else:
-                print(
+                logger.info(
                     f"[VERBOSE] Succesfully found the physical locations of all unlocated fragments in 'declarations'."
                 )
 
@@ -405,46 +413,53 @@ class Cpp:
         return result
 
     def add_namespaces(self, namespaces):
-        print("Adding namespaces")
+        logger.info("Adding namespaces")
         for n in namespaces.items():
             self.add_nodes("namespace", n)
             if n[1].get("contains") is not None:
                 self.add_edges("contains", n)
 
-        print(f"Successfully added {len(namespaces)} namespaces to the graph.")
+        logger.info(f"Successfully added {len(namespaces)} namespaces to the graph.")
 
     def add_translation_units(self, translation_units):
-        print("Adding translation units")
+        logger.info("Adding translation units")
 
         for tu in translation_units.items():
             self.add_nodes("translation_unit", tu)
             self.add_edges("contains", tu)
 
-        print(
+        logger.info(
             f"Successfully added {len(translation_units)} translation units to the graph."
         )
 
     def add_files(self, files):
-        print("Adding files")
+        logger.info("Adding files")
 
         for file in files:
             self.add_nodes("file", file)
 
-        print(f"Successfully added {len(files)} files to the graph.")
+        logger.info(f"Successfully added {len(files)} files to the graph.")
 
     def add_classes(self, classes):
-        print("Adding classes")
+        logger.info("Adding classes")
         # files = []
 
         if self.verbose:
-            print(f"[VERBOSE] Updating declared locations for {len(classes)} classes.")
+            logger.info(
+                f"[VERBOSE] Updating declared locations for {len(classes)} classes."
+            )
 
         # get_fragment_files_dict = self.get_fragment_files(classes)
         # updated_classes = get_fragment_files_dict.get("fragments")
         # files = get_fragment_files_dict.get("files")
 
-        updated_classes_with_extensions = m3_utils.parse_M3_extends(
+        declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, classes, constants.M3_CPP_CLASS_TYPE
+        )
+        classes_updated_from_Declarations = declarations_dict.get("fragments")
+
+        updated_classes_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed, classes_updated_from_Declarations, constants.M3_CPP_CLASS_TYPE
         )  # get class extentions
         for c in updated_classes_with_extensions.items():
             self.add_nodes("class", c)
@@ -452,7 +467,7 @@ class Cpp:
                 self.add_edges("specializes", c)
             # self.add_edges("contains", c)
 
-        print(f"Successfully added {len(classes)} classes to the graph.")
+        logger.info(f"Successfully added {len(classes)} classes to the graph.")
 
         # result = {
         #     "simplified_class_dict": simplified_class,
@@ -462,10 +477,17 @@ class Cpp:
         # return result
 
     def add_templates(self, templates):
-        print("Adding templates")
+        logger.info("Adding templates")
+
+        declarations_dict = m3_utils.parse_M3_declarations(
+            self.parsed, templates, constants.M3_CPP_CLASS_TEMPLATE_TYPE
+        )
+        templates_updated_from_Declarations = declarations_dict.get("fragments")
 
         updated_templates_with_extensions = m3_utils.parse_M3_extends(
-            self.parsed, templates, constants.M3_CPP_CLASS_TEMPLATE_TYPE
+            self.parsed,
+            templates_updated_from_Declarations,
+            constants.M3_CPP_CLASS_TEMPLATE_TYPE,
         )
 
         for temp in updated_templates_with_extensions.items():
@@ -474,13 +496,20 @@ class Cpp:
             if temp[1].get("extends") is not None:
                 self.add_edges("specializes", temp)
 
-        print(f"Successfully added {len(templates)} templates to the graph.")
+        logger.info(f"Successfully added {len(templates)} templates to the graph.")
 
     def add_template_types(self, template_types):
-        print("Adding template types")
+        logger.info("Adding template types")
+
+        declarations_dict = m3_utils.parse_M3_declarations(
+            self.parsed, template_types, constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM
+        )
+        template_types_updated_from_Declarations = declarations_dict.get("fragments")
 
         updated_template_types_with_extensions = m3_utils.parse_M3_extends(
-            self.parsed, template_types, constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
+            self.parsed,
+            template_types_updated_from_Declarations,
+            constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE,
         )
 
         for temp_type in updated_template_types_with_extensions.items():
@@ -489,13 +518,21 @@ class Cpp:
             if temp_type[1].get("extends") is not None:
                 self.add_edges("specializes", temp_type)
 
-        print(f"Successfully added {len(template_types)} template types to the graph.")
+        logger.info(
+            f"Successfully added {len(template_types)} template types to the graph."
+        )
 
     def add_specializations(self, specializations):
-        print("Adding specializations")
+        logger.info("Adding specializations")
 
-        updated_specializations_with_extensions = m3_utils.parse_M3_extends(
+        declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, specializations, constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
+        )
+        specializations_updated_from_Declarations = declarations_dict.get("fragments")
+        updated_specializations_with_extensions = m3_utils.parse_M3_extends(
+            self.parsed,
+            specializations_updated_from_Declarations,
+            constants.M3_CPP_CLASS_SPECIALIZATION_TYPE,
         )
 
         for spec in updated_specializations_with_extensions.items():
@@ -504,16 +541,25 @@ class Cpp:
             if spec[1].get("extends") is not None:
                 self.add_edges("specializes", spec)
 
-        print(
+        logger.info(
             f"Successfully added {len(specializations)} specializations to the graph."
         )
 
     def add_partial_specializations(self, partial_specializations):
-        print("Adding partial specializations")
+        logger.info("Adding partial specializations")
+
+        declarations_dict = m3_utils.parse_M3_declarations(
+            self.parsed,
+            partial_specializations,
+            constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
+        )
+        partial_specializations_updated_from_Declarations = declarations_dict.get(
+            "fragments"
+        )
 
         updated_partial_specializations_with_extensions = m3_utils.parse_M3_extends(
             self.parsed,
-            partial_specializations,
+            partial_specializations_updated_from_Declarations,
             constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
         )
 
@@ -523,21 +569,28 @@ class Cpp:
             if part_spec[1].get("extends") is not None:
                 self.add_edges("specializes", part_spec)
 
-        print(
+        logger.info(
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."
         )
 
     def add_methods(self, methods, structures_dict, parameters):
-        print("Adding methods")
+        logger.info("Adding methods")
 
         if self.verbose:
-            print(f"[VERBOSE] Updating declared locations for {len(methods)} methods.")
+            logger.info(
+                f"[VERBOSE] Updating declared locations for {len(methods)} methods."
+            )
 
         # get_fragment_files_dict = self.get_fragment_files(methods)
         # updated_methods = get_fragment_files_dict.get("fragments")
         # files_for_methods = get_fragment_files_dict.get("files")
 
-        for m in methods.items():
+        declarations_dict = m3_utils.parse_M3_declarations(
+            self.parsed, methods, constants.M3_CPP_METHOD_TYPE
+        )
+        methods_updated_from_Declarations = declarations_dict.get("fragments")
+
+        for m in methods_updated_from_Declarations.items():
             self.add_nodes("method", m)
             # logger.debug("method parent %s", m[1].get("parent"))
             if m[1].get("parent") in structures_dict.keys():
@@ -552,24 +605,24 @@ class Cpp:
 
             method_parameters = parameters.get(m[1].get("functionLoc"))
             if method_parameters is not None:
-                # print(f"adding params for {m[0]}")
+                # logger.info(f"adding params for {m[0]}")
                 for param in method_parameters:
                     self.add_nodes("parameter", param)
                     self.add_edges("hasParameter", param)
             # else:
-            #     print(f"method {m} with empty parameters")
+            #     logger.info(f"method {m} with empty parameters")
 
-        print(f"Successfully added {len(methods)} methods to the graph.")
+        logger.info(f"Successfully added {len(methods)} methods to the graph.")
 
         # result = {"files_for_methods_set": files_for_methods}
 
         # return result
 
     def add_functions(self, functions, containers_dict, parameters):
-        print("Adding functions")
+        logger.info("Adding functions")
 
         if self.verbose:
-            print(
+            logger.info(
                 f"[VERBOSE] Updating declared locations for {len(functions)} functions."
             )
 
@@ -577,7 +630,12 @@ class Cpp:
         # updated_functions = get_fragment_files_dict.get("fragments")
         # files_for_functions = get_fragment_files_dict.get("files")
 
-        for f in functions.items():
+        declarations_dict = m3_utils.parse_M3_declarations(
+            self.parsed, functions, constants.M3_CPP_FUNCTION_TYPE
+        )
+        functions_updated_from_Declarations = declarations_dict.get("fragments")
+
+        for f in functions_updated_from_Declarations.items():
             self.add_nodes("function", f)
 
             if f[1].get("parent") in containers_dict.keys():
@@ -597,14 +655,14 @@ class Cpp:
             else:
                 logger.debug("function %s with empty parameters", f)
 
-        print(f"Successfully added {len(functions)} functions to the graph.")
+        logger.info(f"Successfully added {len(functions)} functions to the graph.")
 
         # result = {"files_for_functions_set": files_for_functions}
 
         # return result
 
     def add_invocations(self, methods, functions):
-        print("Adding invocations")
+        logger.info("Adding invocations")
 
         operations = deepcopy(methods)
         operations.update(functions)
@@ -612,7 +670,7 @@ class Cpp:
         for invoke in invocations:
             self.add_edges("invokes", invoke)
 
-        print(f"Successfully added {len(invocations)} invocations to the graph.")
+        logger.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
     def export(self):
         containment_dict = m3_utils.parse_M3_containment(self.parsed)

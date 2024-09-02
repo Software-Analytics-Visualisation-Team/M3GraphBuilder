@@ -1,14 +1,10 @@
 import re
 import M3GraphBuilder.converters.constants as constants
-import logging
+import M3GraphBuilder.logging_utils as logging
 
-logger = logging.getLogger("m3_utils_logger")
-logging.basicConfig(
-    filename="debug_logs.log",
-    format="%(asctime)s %(levelname)-8s %(message)s",
-    encoding="utf-8",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.DEBUG,
+
+logger = logging.setup_logger(
+    "m3_utils_logger", "m3_utils_logfile.log", logging.logging.DEBUG
 )
 
 
@@ -42,11 +38,12 @@ def parse_M3_function_Definitions(m3, fragments_dict):
     return result
 
 
-def parse_M3_declarations(m3, fragments_dict=None):
+def parse_M3_declarations(m3, fragments_dict=None, fragments_type=None):
     declarations_data = m3["declarations"]
     unlocated_fragments_dict = {}
     parameters_dict = {}
     files_containing_fragments_set = set()
+    counter_for_located_fragments = 0
 
     for rel in declarations_data:
         declarations_fragment = parse_M3_loc_statement(rel[0])
@@ -78,22 +75,35 @@ def parse_M3_declarations(m3, fragments_dict=None):
                     #     print(rel[0])
 
         else:
-            for key in fragments_dict.keys():
-                if fragments_dict[key].get("simpleName") == declarations_fragment.get(
-                    "simpleName"
-                ):
-                    fragments_dict[key]["location"] = get_fragment_declaration_location(
-                        rel[1]
-                    )
+            # for key in fragments_dict.keys():
+            #     if fragments_dict[key].get("loc") == declarations_fragment.get(
+            #         "loc"
+            #     ):
+            #         fragments_dict[key]["physicalLoc"] = get_fragment_declaration_location(
+            #             rel[1]
+            #         )
+            key = declarations_fragment.get("loc")
+            if key is not None and key in fragments_dict.keys():
+                fragments_dict[key]["physicalLoc"] = get_fragment_declaration_location(
+                    rel[1]
+                )
+                counter_for_located_fragments = counter_for_located_fragments + 1
 
-            for fragment in fragments_dict.items():
-                location = fragment[1].get("location")
-                if location is None:
-                    unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[
-                        1
-                    ]
-                else:
-                    files_containing_fragments_set.add(location["file"])
+            # for fragment in fragments_dict.items():
+            #     location = fragment[1].get("location")
+            #     if location is None:
+            #         unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[
+            #             1
+            #         ]
+            #     else:
+            #         files_containing_fragments_set.add(location["file"])
+    if fragments_dict is not None:
+        logger.debug(
+            "Located %s fragments out of %s fragments of type %s.",
+            counter_for_located_fragments,
+            fragments_type,
+            len(fragments_dict),
+        )
 
     result = {
         "fragments": fragments_dict,
@@ -483,7 +493,7 @@ def get_fragment_declaration_location(declaration_loc):
     location = {}
 
     location["file"], location["position"] = re.split("\\(", declaration_loc)
-    location["file"] = re.sub("\\|file:.+/", "", location.get("file"))[:-1]
+    location["file"] = re.sub(constants.M3_FILE_LOC_SCM, "", location.get("file"))[:-1]
     location["position"] = "(" + location["position"]
 
     return location
