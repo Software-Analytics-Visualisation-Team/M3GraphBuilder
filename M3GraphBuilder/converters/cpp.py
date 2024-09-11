@@ -100,14 +100,14 @@ class Cpp:
                             )
 
             case "invokes":
-                edge_id = hash(content["target"]) + hash(content["source"])
+                edge_id = hash(content[1].get("id"))
                 self.lpg["elements"]["edges"].append(
                     {
                         "data": {
                             "id": edge_id,
-                            "source": content["source"],
-                            "properties": {"weight": 1},
-                            "target": content["target"],
+                            "source": content[1]["source"],
+                            "properties": {"weight": content[1]["weight"]},
+                            "target": content[1]["target"],
                             "labels": [kind],
                         }
                     }
@@ -669,8 +669,8 @@ class Cpp:
         operations = deepcopy(methods)
         operations.update(functions)
         invocations = m3_utils.parse_M3_callGraph(self.parsed, operations)
-        for invoke in invocations:
-            self.add_edges("invokes", invoke)
+        for invocation in invocations.items():
+            self.add_edges("invokes", invocation)
 
         logger.info(f"Successfully added {len(invocations)} invocations to the graph.")
 

@@ -256,40 +256,50 @@ def parse_M3_containment(m3):
 
 def parse_M3_callGraph(m3, operations):
     callGraph_data = m3["callGraph"]
-    invokes = []
+    invocations = {}
 
-    for operation in operations.items():
-        for rel in callGraph_data:
-            # if re.match(".+\\.", operation[0]):
-            #     source = operation[0].replace(".", "/")
-            # else:
-            source = operation[1].get("loc")
+    for rel in callGraph_data:
+        source = parse_M3_loc_statement(rel[0])
 
-            if source in rel[0]:
-                invoke = {}
-                invoke["source"] = source
-                try:
-                    if re.match(constants.M3_FUNCTION_LOC_SCM, rel[1]) or re.match(
-                        constants.M3_METHOD_LOC_SCM, rel[1]
-                    ):
-                        # target = re.sub("cpp\\+function:\\/+.+\\/", "", rel[1])
-                        fragment = parse_M3_loc_statement(rel[1])
-                        target = fragment.get("loc")
+        # TODO: If verbose
+        # if re.match(constants.M3_FUNCTION_LOC_SCM, rel[0]) or re.match(
+        #             constants.M3_METHOD_LOC_SCM, rel[0]
+        # ) and source.get("loc") not in operations.keys():
+        #     logger.debug("Invocation source not in operations")
+        #     logger.debug(source)
 
-                    # elif re.match(constants.M3_METHOD_LOC_SCM, target):
-                    #     target = re.sub("cpp\\+method:\\/+", "", rel[1])
-                    #     target = target.replace("/", ".")
-                    # target = re.split("\\(", target)[0]
+        if source.get("loc") in operations.keys():
+            try:
+                if re.match(constants.M3_FUNCTION_LOC_SCM, rel[1]) or re.match(
+                    constants.M3_METHOD_LOC_SCM, rel[1]
+                ):
+                    target = parse_M3_loc_statement(rel[1])
 
-                    if target in operations.keys():
-                        invoke["target"] = target
-                        invokes.append(invoke)
-                except:
-                    pass
-            else:
-                pass
+                    # TODO: If verbose
+                    # if target.get("loc") not in operations.keys():
+                    #     logger.debug("Invocation target not in operations")
+                    #     logger.debug(target)
 
-    return invokes
+                    invocation_id = source.get("loc") + "--" + target.get("loc")
+
+                    existing_invocation = invocations.get(invocation_id)
+                    if existing_invocation is None:
+                        invocation = {}
+                        invocation["id"] = invocation_id
+                        invocation["source"] = source.get("loc")
+                        invocation["target"] = target.get("loc")
+                        invocation["weight"] = 1
+
+                        invocations[invocation_id] = invocation
+                    else:
+                        logger.debug("updating weight of existing invocation")
+                        existing_invocation["weight"] += 1
+                        invocations[invocation_id] = existing_invocation
+
+            except Exception as e:
+                logger.error("exception: %s", e)
+
+    return invocations
 
 
 def parse_M3_extends(m3, fragments, fragments_type):
