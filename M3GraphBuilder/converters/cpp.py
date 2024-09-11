@@ -243,7 +243,11 @@ class Cpp:
         node_id = {}
         properties = {}
         labels = []
-        location = content[1]["physicalLoc"]["file"] if content[1].get("physicalLoc") is not None else content[1]["loc"]
+        location = (
+            content[1]["physicalLoc"]["file"]
+            if content[1].get("physicalLoc") is not None
+            else content[1]["loc"]
+        )
 
         match kind:
             case "problem":
@@ -270,9 +274,6 @@ class Cpp:
                 labels = ["Container"]
 
             case "function":
-
-                
-
                 node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1]["simpleName"],
@@ -288,7 +289,7 @@ class Cpp:
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
-                    "description": location
+                    "description": location,
                 }
                 labels = ["Variable"]
 
@@ -331,9 +332,10 @@ class Cpp:
                         "data": {
                             "id": content,
                             "properties": {
-                                "simpleName": content, 
-                                "kind": kind, 
-                                "description": location},
+                                "simpleName": content,
+                                "kind": kind,
+                                "description": location,
+                            },
                             "labels": [kind],
                         }
                     }
