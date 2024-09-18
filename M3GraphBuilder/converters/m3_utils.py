@@ -256,10 +256,12 @@ def parse_M3_containment(m3):
 
 def parse_M3_callGraph(m3, operations):
     callGraph_data = m3["callGraph"]
+    methodOverrides_data = m3["methodOverrides"]
     invocations = {}
+    unknown_operations = {}
+    result = {}
 
     for rel in callGraph_data:
-        source = parse_M3_loc_statement(rel[0])
 
         # TODO: If verbose
         # if re.match(constants.M3_FUNCTION_LOC_SCM, rel[0]) or re.match(
@@ -268,38 +270,97 @@ def parse_M3_callGraph(m3, operations):
         #     logger.debug("Invocation source not in operations")
         #     logger.debug(source)
 
-        if source.get("loc") in operations.keys():
-            try:
-                if re.match(constants.M3_FUNCTION_LOC_SCM, rel[1]) or re.match(
-                    constants.M3_METHOD_LOC_SCM, rel[1]
-                ):
-                    target = parse_M3_loc_statement(rel[1])
+        try:
+            if (
+                re.match(constants.M3_FUNCTION_LOC_SCM, rel[1])
+                or re.match(constants.M3_METHOD_LOC_SCM, rel[1])
+            ) and (
+                re.match(constants.M3_FUNCTION_LOC_SCM, rel[0])
+                or re.match(constants.M3_METHOD_LOC_SCM, rel[0])
+            ):
+                source = parse_M3_loc_statement(rel[0])
 
-                    # TODO: If verbose
-                    # if target.get("loc") not in operations.keys():
-                    #     logger.debug("Invocation target not in operations")
-                    #     logger.debug(target)
+                if source.get("loc") not in operations.keys():
+                    unknown_operations[source("loc")] = source
 
-                    invocation_id = source.get("loc") + "--" + target.get("loc")
+                target = parse_M3_loc_statement(rel[1])
 
-                    existing_invocation = invocations.get(invocation_id)
-                    if existing_invocation is None:
-                        invocation = {}
-                        invocation["id"] = invocation_id
-                        invocation["source"] = source.get("loc")
-                        invocation["target"] = target.get("loc")
-                        invocation["weight"] = 1
+                if target.get("loc") not in operations.keys():
+                    unknown_operations[target("loc")] = target
 
-                        invocations[invocation_id] = invocation
-                    else:
-                        logger.debug("updating weight of existing invocation")
-                        existing_invocation["weight"] += 1
-                        invocations[invocation_id] = existing_invocation
+                # TODO: If verbose
+                # if target.get("loc") not in operations.keys():
+                #     logger.debug("Invocation target not in operations")
+                #     logger.debug(target)
 
-            except Exception as e:
-                logger.error("exception: %s", e)
+                invocation_id = source.get("loc") + "--" + target.get("loc")
 
-    return invocations
+                existing_invocation = invocations.get(invocation_id)
+                if existing_invocation is None:
+                    invocation = {}
+                    invocation["id"] = invocation_id
+                    invocation["source"] = source.get("loc")
+                    invocation["target"] = target.get("loc")
+                    invocation["weight"] = 1
+
+                    invocations[invocation_id] = invocation
+                else:
+                    logger.debug("updating weight of existing invocation")
+                    existing_invocation["weight"] += 1
+                    invocations[invocation_id] = existing_invocation
+
+        except Exception as e:
+            logger.error("exception: %s", e)
+
+    for rel in methodOverrides_data:
+        try:
+            if (
+                re.match(constants.M3_FUNCTION_LOC_SCM, rel[1])
+                or re.match(constants.M3_METHOD_LOC_SCM, rel[1])
+            ) and (
+                re.match(constants.M3_FUNCTION_LOC_SCM, rel[0])
+                or re.match(constants.M3_METHOD_LOC_SCM, rel[0])
+            ):
+                source = parse_M3_loc_statement(rel[1])
+
+                if source.get("loc") not in operations.keys():
+                    unknown_operations[source("loc")] = source
+
+                target = parse_M3_loc_statement(rel[0])
+
+                if target.get("loc") not in operations.keys():
+                    unknown_operations[target("loc")] = target
+
+                # TODO: If verbose
+                # if target.get("loc") not in operations.keys():
+                #     logger.debug("Invocation target not in operations")
+                #     logger.debug(target)
+
+                invocation_id = source.get("loc") + "--" + target.get("loc")
+
+                existing_invocation = invocations.get(invocation_id)
+                if existing_invocation is None:
+                    invocation = {}
+                    invocation["id"] = invocation_id
+                    invocation["source"] = source.get("loc")
+                    invocation["target"] = target.get("loc")
+                    invocation["weight"] = 1
+
+                    invocations[invocation_id] = invocation
+                else:
+                    logger.debug("updating weight of existing invocation")
+                    existing_invocation["weight"] += 1
+                    invocations[invocation_id] = existing_invocation
+
+        except Exception as e:
+            logger.error("exception: %s", e)
+
+    result = {
+        "invocations": invocations,
+        "unknown_operations": unknown_operations,
+    }
+
+    return result
 
 
 def parse_M3_extends(m3, fragments, fragments_type):
