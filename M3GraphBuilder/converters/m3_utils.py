@@ -272,42 +272,46 @@ def parse_M3_callGraph(m3, operations):
 
         try:
             if (
-                re.match(constants.M3_FUNCTION_LOC_SCM, rel[1])
-                or re.match(constants.M3_METHOD_LOC_SCM, rel[1])
-            ) and (
-                re.match(constants.M3_FUNCTION_LOC_SCM, rel[0])
-                or re.match(constants.M3_METHOD_LOC_SCM, rel[0])
+                r"message=Invalid%20type%20encountered%20in:" not in rel[1]
+                and r"message=Invalid%20type%20encountered%20in:" not in rel[0]
             ):
-                source = parse_M3_loc_statement(rel[0])
+                if (
+                    re.match(constants.M3_FUNCTION_LOC_SCM, rel[1])
+                    or re.match(constants.M3_METHOD_LOC_SCM, rel[1])
+                ) and (
+                    re.match(constants.M3_FUNCTION_LOC_SCM, rel[0])
+                    or re.match(constants.M3_METHOD_LOC_SCM, rel[0])
+                ):
+                    source = parse_M3_loc_statement(rel[0])
 
-                if source.get("loc") not in operations.keys():
-                    unknown_operations[source.get("loc")] = source
+                    if source.get("loc") not in operations.keys():
+                        unknown_operations[source.get("loc")] = source
 
-                target = parse_M3_loc_statement(rel[1])
+                    target = parse_M3_loc_statement(rel[1])
 
-                if target.get("loc") not in operations.keys():
-                    unknown_operations[target.get("loc")] = target
+                    if target.get("loc") not in operations.keys():
+                        unknown_operations[target.get("loc")] = target
 
-                # TODO: If verbose
-                # if target.get("loc") not in operations.keys():
-                #     logger.debug("Invocation target not in operations")
-                #     logger.debug(target)
+                    # TODO: If verbose
+                    # if target.get("loc") not in operations.keys():
+                    #     logger.debug("Invocation target not in operations")
+                    #     logger.debug(target)
 
-                invocation_id = source.get("loc") + "--" + target.get("loc")
+                    invocation_id = source.get("loc") + "--" + target.get("loc")
 
-                existing_invocation = invocations.get(invocation_id)
-                if existing_invocation is None:
-                    invocation = {}
-                    invocation["id"] = invocation_id
-                    invocation["source"] = source.get("loc")
-                    invocation["target"] = target.get("loc")
-                    invocation["weight"] = 1
+                    existing_invocation = invocations.get(invocation_id)
+                    if existing_invocation is None:
+                        invocation = {}
+                        invocation["id"] = invocation_id
+                        invocation["source"] = source.get("loc")
+                        invocation["target"] = target.get("loc")
+                        invocation["weight"] = 1
 
-                    invocations[invocation_id] = invocation
-                else:
-                    logger.debug("updating weight of existing invocation")
-                    existing_invocation["weight"] += 1
-                    invocations[invocation_id] = existing_invocation
+                        invocations[invocation_id] = invocation
+                    else:
+                        logger.debug("updating weight of existing invocation")
+                        existing_invocation["weight"] += 1
+                        invocations[invocation_id] = existing_invocation
 
         except Exception as e:
             logger.error("exception: %s", e)
@@ -315,42 +319,46 @@ def parse_M3_callGraph(m3, operations):
     for rel in methodOverrides_data:
         try:
             if (
-                re.match(constants.M3_FUNCTION_LOC_SCM, rel[1])
-                or re.match(constants.M3_METHOD_LOC_SCM, rel[1])
-            ) and (
-                re.match(constants.M3_FUNCTION_LOC_SCM, rel[0])
-                or re.match(constants.M3_METHOD_LOC_SCM, rel[0])
+                r"message=Invalid%20type%20encountered%20in:" not in rel[1]
+                and r"message=Invalid%20type%20encountered%20in:" not in rel[0]
             ):
-                source = parse_M3_loc_statement(rel[1])
+                if (
+                    re.match(constants.M3_FUNCTION_LOC_SCM, rel[1])
+                    or re.match(constants.M3_METHOD_LOC_SCM, rel[1])
+                ) and (
+                    re.match(constants.M3_FUNCTION_LOC_SCM, rel[0])
+                    or re.match(constants.M3_METHOD_LOC_SCM, rel[0])
+                ):
+                    source = parse_M3_loc_statement(rel[1])
 
-                if source.get("loc") not in operations.keys():
-                    unknown_operations[source.get("loc")] = source
+                    if source.get("loc") not in operations.keys():
+                        unknown_operations[source.get("loc")] = source
 
-                target = parse_M3_loc_statement(rel[0])
+                    target = parse_M3_loc_statement(rel[0])
 
-                if target.get("loc") not in operations.keys():
-                    unknown_operations[target.get("loc")] = target
+                    if target.get("loc") not in operations.keys():
+                        unknown_operations[target.get("loc")] = target
 
-                # TODO: If verbose
-                # if target.get("loc") not in operations.keys():
-                #     logger.debug("Invocation target not in operations")
-                #     logger.debug(target)
+                    # TODO: If verbose
+                    # if target.get("loc") not in operations.keys():
+                    #     logger.debug("Invocation target not in operations")
+                    #     logger.debug(target)
 
-                invocation_id = source.get("loc") + "--" + target.get("loc")
+                    invocation_id = source.get("loc") + "--" + target.get("loc")
 
-                existing_invocation = invocations.get(invocation_id)
-                if existing_invocation is None:
-                    invocation = {}
-                    invocation["id"] = invocation_id
-                    invocation["source"] = source.get("loc")
-                    invocation["target"] = target.get("loc")
-                    invocation["weight"] = 1
+                    existing_invocation = invocations.get(invocation_id)
+                    if existing_invocation is None:
+                        invocation = {}
+                        invocation["id"] = invocation_id
+                        invocation["source"] = source.get("loc")
+                        invocation["target"] = target.get("loc")
+                        invocation["weight"] = 1
 
-                    invocations[invocation_id] = invocation
-                else:
-                    logger.debug("updating weight of existing invocation")
-                    existing_invocation["weight"] += 1
-                    invocations[invocation_id] = existing_invocation
+                        invocations[invocation_id] = invocation
+                    else:
+                        logger.debug("updating weight of existing invocation")
+                        existing_invocation["weight"] += 1
+                        invocations[invocation_id] = existing_invocation
 
         except Exception as e:
             logger.error("exception: %s", e)
@@ -402,21 +410,21 @@ def parse_M3_loc_statement(loc_statement):
     match fragment_type:
         case constants.M3_CPP_CLASS_TYPE:  # parse class loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_CLASS_LOC_SCM, loc_statement
+                loc_statement, constants.M3_CLASS_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_CONSTRUCTOR_TYPE:  # parse constructor loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_CONSTRUCTOR_LOC_SCM, loc_statement
+                loc_statement, constants.M3_CONSTRUCTOR_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CONSTRUCTOR_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_FUNCTION_TYPE:  # parse function loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_FUNCTION_LOC_SCM, loc_statement
+                loc_statement, constants.M3_FUNCTION_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TYPE
@@ -424,14 +432,14 @@ def parse_M3_loc_statement(loc_statement):
             fragment["parent"] = fragment_parent
         case constants.M3_CPP_FUNCTION_TEMPLATE_TYPE:  # parse functionTemplate loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_FUNCTION_TEMPLATE_LOC_SCM, loc_statement
+                loc_statement, constants.M3_FUNCTION_TEMPLATE_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_FUNCTION_TEMPLATE_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_METHOD_TYPE:  # parse method loc
             loc_path, fragment_parent, fragment_name = parse_rascal_loc(
-                constants.M3_METHOD_LOC_SCM, loc_statement
+                loc_statement, constants.M3_METHOD_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_METHOD_TYPE
@@ -439,21 +447,21 @@ def parse_M3_loc_statement(loc_statement):
             fragment["parent"] = fragment_parent
         case constants.M3_CPP_NAMESPACE_TYPE:  # parse namespace loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_NAMESPACE_LOC_SCM, loc_statement
+                loc_statement, constants.M3_NAMESPACE_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_NAMESPACE_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_DEFERRED_CLASS_TYPE:  # parse deferredClassInstance loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_DEFFERED_CLASS_LOC_SCM, loc_statement
+                loc_statement, constants.M3_DEFFERED_CLASS_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_DEFERRED_CLASS_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_CLASS_TEMPLATE_TYPE:  # parse classTemplate loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_CLASS_TEMPLATE_LOC_SCM, loc_statement
+                loc_statement, constants.M3_CLASS_TEMPLATE_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TEMPLATE_TYPE
@@ -462,7 +470,7 @@ def parse_M3_loc_statement(loc_statement):
             constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
         ):  # parse templateTypeParameter loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM, loc_statement
+                loc_statement, constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
@@ -471,7 +479,7 @@ def parse_M3_loc_statement(loc_statement):
             constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
         ):  # parse classTemplatePartialSpec loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_CLASS_TEMPLATE_PARTIAL_SPEC_LOC_SCM, loc_statement
+                loc_statement, constants.M3_CLASS_TEMPLATE_PARTIAL_SPEC_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
@@ -480,14 +488,14 @@ def parse_M3_loc_statement(loc_statement):
             constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
         ):  # parse classSpecialization loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_CLASS_SPECIALIZATION_LOC_SCM, loc_statement
+                loc_statement, constants.M3_CLASS_SPECIALIZATION_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_TRANSLATION_UNIT_TYPE:  # parse translationUnit loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_TRANSLATION_UNIT_LOC_SCM, loc_statement
+                loc_statement, constants.M3_TRANSLATION_UNIT_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_TRANSLATION_UNIT_TYPE
@@ -502,14 +510,14 @@ def parse_M3_loc_statement(loc_statement):
             fragment["loc"] = parsed_problem_loc.get("loc_path")
         case constants.M3_CPP_VARIABLE_TYPE:  # parse variable loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_VARIABLE_LOC_SCM, loc_statement
+                loc_statement, constants.M3_VARIABLE_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_VARIABLE_TYPE
             fragment["simpleName"] = simple_name
         case constants.M3_CPP_PARAMETER_TYPE:  # parse parameter loc
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
-                constants.M3_PARAMETER_LOC_SCM, loc_statement
+                loc_statement, constants.M3_PARAMETER_LOC_SCM
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_PARAMETER_TYPE
@@ -520,16 +528,23 @@ def parse_M3_loc_statement(loc_statement):
     return fragment
 
 
-def parse_rascal_loc(schema, loc):
+def parse_rascal_loc(loc, schema=None):
+    loc_fragment_parent = ""
 
-    loc_path = re.sub(schema, "", loc)
+    if schema is not None:
+        loc_path = re.sub(schema, "", loc)
+    else:
+        loc_path = loc
+
     parsed_loc = re.split("/", loc_path)
-    loc_fragment_parent = "/".join(parsed_loc[:-1])
     loc_fragment = parsed_loc[-1]
 
-    if loc_fragment == "":
-        loc_fragment_parent = "/".join(parsed_loc[:-2])
-        loc_fragment = parsed_loc[-2]
+    if len(parsed_loc) > 1:
+        loc_fragment_parent = "/".join(parsed_loc[:-1])
+
+        if loc_fragment == "":
+            loc_fragment_parent = "/".join(parsed_loc[:-2])
+            loc_fragment = parsed_loc[-2]
 
     if re.search(r"\(|\)", loc_fragment):
         loc_fragment = re.split("\\(", loc_fragment)[0]

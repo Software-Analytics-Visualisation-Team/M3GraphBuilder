@@ -676,6 +676,29 @@ class Cpp:
         for invocation in invocations.items():
             self.add_edges("invokes", invocation)
 
+        unknown_operations = callGraph_data.get("unknown_operations")
+
+        for operation_loc in unknown_operations:
+            loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(
+                operation_loc
+            )
+
+            if (
+                loc_fragment_parent not in self.structures.keys()
+                and loc_fragment_parent not in self.containers.keys()
+            ):
+                logger.info("Missing fragment not in structures: %s", loc_path)
+            else:
+                self.add_nodes(
+                    "function",
+                    tuple((loc_path, {"loc": loc_path, "simpleName": loc_fragment})),
+                )
+
+                self.add_edges(
+                    "hasScript",
+                    tuple((loc_path, {"loc": loc_path, "parent": loc_fragment_parent})),
+                )
+
         logger.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
     def export(self):
