@@ -281,12 +281,12 @@ def parse_M3_callGraph(m3, operations):
                 source = parse_M3_loc_statement(rel[0])
 
                 if source.get("loc") not in operations.keys():
-                    unknown_operations[source("loc")] = source
+                    unknown_operations[source.get("loc")] = source
 
                 target = parse_M3_loc_statement(rel[1])
 
                 if target.get("loc") not in operations.keys():
-                    unknown_operations[target("loc")] = target
+                    unknown_operations[target.get("loc")] = target
 
                 # TODO: If verbose
                 # if target.get("loc") not in operations.keys():
@@ -324,12 +324,12 @@ def parse_M3_callGraph(m3, operations):
                 source = parse_M3_loc_statement(rel[1])
 
                 if source.get("loc") not in operations.keys():
-                    unknown_operations[source("loc")] = source
+                    unknown_operations[source.get("loc")] = source
 
                 target = parse_M3_loc_statement(rel[0])
 
                 if target.get("loc") not in operations.keys():
-                    unknown_operations[target("loc")] = target
+                    unknown_operations[target.get("loc")] = target
 
                 # TODO: If verbose
                 # if target.get("loc") not in operations.keys():
@@ -354,6 +354,12 @@ def parse_M3_callGraph(m3, operations):
 
         except Exception as e:
             logger.error("exception: %s", e)
+
+    if len(unknown_operations) > 0:
+        logger.debug(
+            "[VERBOSE] Found %s unknown operations when parsing callGraph",
+            len(unknown_operations),
+        )
 
     result = {
         "invocations": invocations,
