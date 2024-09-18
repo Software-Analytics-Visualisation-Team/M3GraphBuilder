@@ -13,6 +13,9 @@ class Cpp:
     lpg = {"elements": {"nodes": [], "edges": []}}
     parsed = None
     path = None
+    containers = {}
+    structures = {}
+    operations = {}
 
     def __init__(self, path, parsed, verbose, issues=None) -> None:
         self.path = path
@@ -575,7 +578,7 @@ class Cpp:
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."
         )
 
-    def add_methods(self, methods, structures_dict, parameters):
+    def add_methods(self, methods, parameters):
         logger.info("Adding methods")
 
         if self.verbose:
@@ -595,9 +598,9 @@ class Cpp:
         for m in methods_updated_from_Declarations.items():
             self.add_nodes("method", m)
             # logger.debug("method parent %s", m[1].get("parent"))
-            if m[1].get("parent") in structures_dict.keys():
+            if m[1].get("parent") in self.structures.keys():
                 # logger.debug("parent successfully recognized")
-                parent_fragment = structures_dict.get(m[1]["parent"])
+                parent_fragment = self.structures.get(m[1]["parent"])
 
                 m[1]["parent"] = parent_fragment.get("loc")
                 self.add_edges("hasScript", m)
@@ -666,9 +669,10 @@ class Cpp:
     def add_invocations(self, methods, functions):
         logger.info("Adding invocations")
 
-        operations = deepcopy(methods)
-        operations.update(functions)
-        invocations = m3_utils.parse_M3_callGraph(self.parsed, operations)
+        self.operations = deepcopy(methods)
+        self.operations.update(functions)
+        callGraph_data = m3_utils.parse_M3_callGraph(self.parsed, self.operations)
+        invocations = callGraph_data.get("invocations")
         for invocation in invocations.items():
             self.add_edges("invokes", invocation)
 
@@ -679,11 +683,13 @@ class Cpp:
 
         namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
         self.add_namespaces(namespaces_dict)
+        self.containers = deepcopy(namespaces_dict)
+
         # self.add_translation_units(containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE))
 
         templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
         self.add_templates(templates_dict)
-        structures_dict = deepcopy(templates_dict)
+        self.structures = deepcopy(templates_dict)
 
         template_types_dict = containment_dict.get(
             constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
@@ -694,17 +700,17 @@ class Cpp:
             constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
         )
         self.add_specializations(specializations_dict)
-        structures_dict.update(specializations_dict)
+        self.structures.update(specializations_dict)
 
         partial_specializations_dict = containment_dict.get(
             constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
         )
         self.add_partial_specializations(partial_specializations_dict)
-        structures_dict.update(specializations_dict)
+        self.structures.update(specializations_dict)
 
         classes_dict = containment_dict.get(constants.M3_CPP_CLASS_TYPE)
         self.add_classes(classes_dict)
-        structures_dict.update(classes_dict)
+        self.structures.update(classes_dict)
 
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
@@ -713,7 +719,6 @@ class Cpp:
 
         add_methods_dict = self.add_methods(
             declaredType_dicts.get("methods"),
-            structures_dict,
             declarations_dict.get("parameters"),
         )
         # files_for_methods = add_methods_dict.get("files_for_methods_set")
