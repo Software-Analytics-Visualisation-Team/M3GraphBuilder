@@ -119,12 +119,7 @@ class Cpp:
             case "contains":
                 try:
                     # Namespace and translation unit relationships
-                    if (
-                        content[1].get("fragmentType")
-                        is constants.M3_CPP_TRANSLATION_UNIT_TYPE
-                        or content[1].get("fragmentType")
-                        is constants.M3_CPP_NAMESPACE_TYPE
-                    ):
+                    if content[1].get("fragmentType") in constants.CONTAINER_PARENTS:
                         contained_fragments = content[1].get("contains")
                         if contained_fragments is not None:
 
@@ -185,14 +180,14 @@ class Cpp:
                                 )
                                 return
                     # Classes relationships
-                    elif content[1].get("location") is not None:
-                        edge_id = hash(content[0]) + hash(
-                            content[1]["location"]["file"]
-                        )
-                        source = content[1]["location"].get("file")
-                        properties = {"weight": 1}
-                        target = content[0]
-                        labels = ["contains"]
+                    # elif content[1].get("contains") is not None:
+                    #     edge_id = hash(content[0]) + hash(
+                    #         content[1]["location"]["file"]
+                    #     )
+                    #     source = content[1]["location"].get("file")
+                    #     properties = {"weight": 1}
+                    #     target = content[0]
+                    #     labels = ["contains"]
                 except Exception as e:
                     logger.info("Problem adding 'contains' relationship for ", content)
 
@@ -470,7 +465,7 @@ class Cpp:
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
                 self.add_edges("specializes", c)
-            # self.add_edges("contains", c)
+            self.add_edges("contains", c)
 
         logger.info(f"Successfully added {len(classes)} classes to the graph.")
 
@@ -500,6 +495,7 @@ class Cpp:
 
             if temp[1].get("extends") is not None:
                 self.add_edges("specializes", temp)
+            self.add_edges("contains", temp)
 
         logger.info(f"Successfully added {len(templates)} templates to the graph.")
 
@@ -522,6 +518,7 @@ class Cpp:
 
             if temp_type[1].get("extends") is not None:
                 self.add_edges("specializes", temp_type)
+            self.add_edges("contains", temp_type)
 
         logger.info(
             f"Successfully added {len(template_types)} template types to the graph."
@@ -545,6 +542,7 @@ class Cpp:
 
             if spec[1].get("extends") is not None:
                 self.add_edges("specializes", spec)
+            self.add_edges("contains", spec)
 
         logger.info(
             f"Successfully added {len(specializations)} specializations to the graph."
@@ -573,6 +571,7 @@ class Cpp:
 
             if part_spec[1].get("extends") is not None:
                 self.add_edges("specializes", part_spec)
+            self.add_edges("contains", part_spec)
 
         logger.info(
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."

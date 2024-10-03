@@ -49,3 +49,20 @@ NAMESPACE_CHILD_FRAGMENT_TYPES = [
     M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
     M3_CPP_CLASS_TEMPLATE_TYPE,
 ]  # TODO:Extend when ClassViz can handle this situation. - function and function templates
+
+NESTED_STRUCTURES_FRAGMENT_TYPES = [
+    M3_CPP_CLASS_TYPE,
+    M3_CPP_CLASS_SPECIALIZATION_TYPE,
+    M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
+    M3_CPP_CLASS_TEMPLATE_TYPE,
+]
+
+# Types of containers and structure that have a "contains" relationship to a sub-container (e.g., sub-namespace) or sub-structure (e.g., nested class)
+CONTAINER_PARENTS = [
+    M3_CPP_NAMESPACE_TYPE,
+    M3_CPP_TRANSLATION_UNIT_TYPE,
+    M3_CPP_CLASS_TYPE,
+    M3_CPP_CLASS_SPECIALIZATION_TYPE,
+    M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
+    M3_CPP_CLASS_TEMPLATE_TYPE,
+]

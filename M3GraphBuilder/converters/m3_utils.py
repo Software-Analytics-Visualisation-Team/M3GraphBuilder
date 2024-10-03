@@ -248,6 +248,29 @@ def parse_M3_containment(m3):
                 | constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
             ):
                 relevant_fragments_dict = containment_dict[fragment.get("fragmentType")]
+                existing_structure_fragment = (
+                    True
+                    if relevant_fragments_dict.get(fragment["loc"]) is not None
+                    else False
+                )
+
+                contained_fragment = parse_M3_loc_statement(rel[1])
+
+                if (
+                    contained_fragment.get("fragmentType")
+                    in constants.NESTED_STRUCTURES_FRAGMENT_TYPES
+                ):
+                    if existing_structure_fragment:
+                        fragment = update_fragment_contains(
+                            relevant_fragments_dict[fragment["loc"]],
+                            contained_fragment["loc"],
+                        )
+                    else:
+                        fragment = update_fragment_contains(
+                            fragment,
+                            contained_fragment["loc"],
+                        )
+
                 relevant_fragments_dict[fragment["loc"]] = fragment
                 containment_dict[fragment.get("fragmentType")] = relevant_fragments_dict
 
