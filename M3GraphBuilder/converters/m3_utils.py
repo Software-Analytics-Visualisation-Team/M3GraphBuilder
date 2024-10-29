@@ -231,14 +231,30 @@ def parse_M3_containment(m3):
 
             case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
                 translation_unit_dict[fragment["loc"]] = fragment
+
                 contained_fragment = parse_M3_loc_statement(rel[1])
                 if (
                     contained_fragment.get("fragmentType")
-                    in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
+                    in constants.LOGICAL_LOC_TYPES
                 ):
-                    translation_unit_dict[fragment["loc"]] = update_fragment_contains(
-                        translation_unit_dict[fragment["loc"]],
-                        contained_fragment["loc"],
+                    relevant_fragments_dict = containment_dict[
+                        contained_fragment.get("fragmentType")
+                    ]
+
+                    if (
+                        relevant_fragments_dict.get(contained_fragment["loc"])
+                        is not None
+                    ):
+                        contained_fragment = relevant_fragments_dict.get(
+                            contained_fragment["loc"]
+                        )
+
+                    contained_fragment["phyiscalLoc"] = fragment
+                    relevant_fragments_dict[contained_fragment["loc"]] = (
+                        contained_fragment
+                    )
+                    containment_dict[contained_fragment.get("fragmentType")] = (
+                        relevant_fragments_dict
                     )
             case (
                 constants.M3_CPP_CLASS_TYPE

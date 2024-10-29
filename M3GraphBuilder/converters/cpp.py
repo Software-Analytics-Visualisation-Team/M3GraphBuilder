@@ -242,34 +242,25 @@ class Cpp:
         properties = {}
         labels = []
         location = (
-            content[1]["physicalLoc"]["file"]
-            if content[1].get("physicalLoc") is not None
+            content[1]["phyiscalLoc"]["loc"]
+            if content[1].get("phyiscalLoc") is not None
             else content[1]["loc"]
         )
 
         match kind:
-            case "problem":
-                node_id = content[1]["id"]
-                properties = {
-                    "simpleName": content[1]["id"],
-                    "description": content[1]["message"],
-                    "kind": kind,
-                }
-                labels = [["Problem"]]
+            # case "translation_unit":
+            #     node_id = content[1].get("loc")
+            #     properties = {
+            #         "simpleName": content[1].get("simpleName"),
+            #         "description": content[1].get("loc"),
+            #         "kind": "file",
+            #     }
+            #     labels = [["Container"]]
 
-            case "translation_unit":
-                node_id = content[1].get("loc")
-                properties = {
-                    "simpleName": content[1].get("simpleName"),
-                    "description": content[1].get("loc"),
-                    "kind": "file",
-                }
-                labels = [["Container"]]
-
-            case "file":
-                node_id = content
-                properties = {"simpleName": content, "kind": kind}
-                labels = ["Container"]
+            # case "file":
+            #     node_id = content
+            #     properties = {"simpleName": content, "kind": kind}
+            #     labels = ["Container"]
 
             case "function":
                 node_id = content[1].get("loc")
@@ -422,15 +413,15 @@ class Cpp:
         logger.info(f"Successfully added {len(namespaces)} namespaces to the graph.")
 
     def add_translation_units(self, translation_units):
-        logger.info("Adding translation units")
+        logger.info("Printing translation units")
 
-        for tu in translation_units.items():
-            self.add_nodes("translation_unit", tu)
-            self.add_edges("contains", tu)
+        # for tu in translation_units.items():
+        # self.add_nodes("translation_unit", tu)
+        # self.add_edges("contains", tu)
 
-        logger.info(
-            f"Successfully added {len(translation_units)} translation units to the graph."
-        )
+        # logger.info(
+        #     f"Successfully added {len(translation_units)} translation units to the graph."
+        # )
 
     def add_files(self, files):
         logger.info("Adding files")
@@ -707,7 +698,9 @@ class Cpp:
         self.add_namespaces(namespaces_dict)
         self.containers = deepcopy(namespaces_dict)
 
-        # self.add_translation_units(containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE))
+        self.add_translation_units(
+            containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
+        )
 
         templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
         self.add_templates(templates_dict)
