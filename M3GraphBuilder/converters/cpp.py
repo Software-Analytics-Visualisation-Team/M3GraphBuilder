@@ -248,14 +248,14 @@ class Cpp:
         )
 
         match kind:
-            # case "translation_unit":
-            #     node_id = content[1].get("loc")
-            #     properties = {
-            #         "simpleName": content[1].get("simpleName"),
-            #         "description": content[1].get("loc"),
-            #         "kind": "file",
-            #     }
-            #     labels = [["Container"]]
+            case "translation_unit":
+                node_id = content[1].get("loc")
+                properties = {
+                    "simpleName": content[1].get("simpleName"),
+                    "description": content[1].get("physicalLoc"),
+                    "kind": "translation_unit",
+                }
+                labels = ["Structure"]
 
             # case "file":
             #     node_id = content
@@ -413,15 +413,14 @@ class Cpp:
         logger.info(f"Successfully added {len(namespaces)} namespaces to the graph.")
 
     def add_translation_units(self, translation_units):
-        logger.info("Printing translation units")
+        logger.info("Adding translation units")
 
-        # for tu in translation_units.items():
-        # self.add_nodes("translation_unit", tu)
-        # self.add_edges("contains", tu)
+        for tu in translation_units.items():
+            self.add_nodes("translation_unit", tu)
 
-        # logger.info(
-        #     f"Successfully added {len(translation_units)} translation units to the graph."
-        # )
+        logger.info(
+            f"Successfully added {len(translation_units)} translation units to the graph."
+        )
 
     def add_files(self, files):
         logger.info("Adding files")
@@ -698,9 +697,9 @@ class Cpp:
         self.add_namespaces(namespaces_dict)
         self.containers = deepcopy(namespaces_dict)
 
-        self.add_translation_units(
-            containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
-        )
+        # self.add_translation_units(
+        #     containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
+        # )
 
         templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
         self.add_templates(templates_dict)
@@ -731,6 +730,8 @@ class Cpp:
 
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
+
+        self.add_translation_units(declarations_dict.get("translation_units"))
 
         add_methods_dict = self.add_methods(
             declaredType_dicts.get("methods"),
