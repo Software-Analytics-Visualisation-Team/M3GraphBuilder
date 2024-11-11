@@ -480,6 +480,10 @@ def parse_M3_loc_statement(loc_statement):
             loc_path, fragment_parent, simple_name = parse_rascal_loc(
                 loc_statement, constants.M3_NAMESPACE_LOC_SCM
             )
+            # Handle unnamed namespaces
+            if loc_path == "" and simple_name == "":
+                loc_path = simple_name = "UnnamedNamespace"
+
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_NAMESPACE_TYPE
             fragment["simpleName"] = simple_name
