@@ -115,7 +115,21 @@ class Cpp:
                         }
                     }
                 )
-
+            
+            case "contains-definition":
+                print(content)
+                edge_id = hash(content["translationUnit"] + "" + content["definition"])
+                self.lpg["elements"]["edges"].append(
+                    {
+                        "data": {
+                            "id": edge_id,
+                            "source": content["translationUnit"],
+                            "properties": {"weight": 1},
+                            "target": content["definition"],
+                            "labels": ["specializes"],
+                        }
+                    }
+                )
             case "contains":
                 try:
                     # Namespace and translation unit relationships
@@ -414,9 +428,12 @@ class Cpp:
 
     def add_translation_units(self, translation_units):
         logger.info("Adding translation units")
-
         for tu in translation_units.items():
             self.add_nodes("translation_unit", tu)
+
+            if tu[1].get("definitions") is not None:
+                for definition in tu[1].get("definitions").items():
+                    self.add_edges("contains-definition", {"translationUnit" : tu[0] , "definition" : definition[0]})
 
         logger.info(
             f"Successfully added {len(translation_units)} translation units to the graph."
@@ -691,15 +708,20 @@ class Cpp:
         logger.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
     def export(self):
+        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
+        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
+
+        translation_units = declarations_dict.get("translation_units")
+        containment_translation_units = containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
+        translation_units.update(containment_translation_units)
+
+        self.add_translation_units(translation_units)
+        
 
         namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
         self.add_namespaces(namespaces_dict)
         self.containers = deepcopy(namespaces_dict)
-
-        # self.add_translation_units(
-        #     containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
-        # )
 
         templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
         self.add_templates(templates_dict)
@@ -728,10 +750,7 @@ class Cpp:
 
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
-        declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
-        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
 
-        self.add_translation_units(declarations_dict.get("translation_units"))
 
         add_methods_dict = self.add_methods(
             declaredType_dicts.get("methods"),

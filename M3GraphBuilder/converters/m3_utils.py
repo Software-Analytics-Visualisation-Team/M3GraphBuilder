@@ -50,7 +50,6 @@ def parse_M3_declarations(m3, fragments_dict=None, fragments_type=None):
         declarations_fragment = parse_M3_loc_statement(rel[0])
 
         if fragments_dict is None:
-            # print(declarations_fragment["fragmentType"])
             match declarations_fragment["fragmentType"]:
                 case constants.M3_CPP_PARAMETER_TYPE:
                     declarations_fragment = update_parameter_info(
@@ -73,14 +72,10 @@ def parse_M3_declarations(m3, fragments_dict=None, fragments_type=None):
                                 parameters_for_function
                             )
                 case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
-                    # print("found tu: ", declarations_fragment.get("simpleName"))
                     declarations_fragment["physicalLoc"] = rel[1]
-                    translation_units_dict[declarations_fragment.get("simpleName")] = (
+                    translation_units_dict[declarations_fragment.get("loc")] = (
                         declarations_fragment
                     )
-                    # else:
-                    #     print("[DEBUG] empty parameter processed:")
-                    #     print(rel[0])
 
         else:
             # for key in fragments_dict.keys():
@@ -182,7 +177,7 @@ def parse_M3_containment(m3):
     template_types_dict = {}
     specializations_dict = {}
     partial_specializations_dict = {}
-    # translation_unit_dict = {}
+    translation_unit_dict = {}
 
     containment_dict = {
         constants.M3_CPP_NAMESPACE_TYPE: namespaces_dict,
@@ -191,7 +186,7 @@ def parse_M3_containment(m3):
         constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE: template_types_dict,
         constants.M3_CPP_CLASS_SPECIALIZATION_TYPE: specializations_dict,
         constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE: partial_specializations_dict,
-        # constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
+        constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
     }
 
     for rel in containment_data:
@@ -238,33 +233,21 @@ def parse_M3_containment(m3):
                 if isNewNamespace or isContainedFragmentRelevant:
                     namespaces_dict[namespace_fragment["loc"]] = namespace_fragment
 
-            # case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
-            #     translation_unit_dict[fragment["loc"]] = fragment
+            case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
+                translation_unit_fragment = translation_unit_dict.get(fragment["loc"])
 
-            #     contained_fragment = parse_M3_loc_statement(rel[1])
-            #     if (
-            #         contained_fragment.get("fragmentType")
-            #         in constants.LOGICAL_LOC_TYPES
-            #     ):
-            #         relevant_fragments_dict = containment_dict[
-            #             contained_fragment.get("fragmentType")
-            #         ]
+                if translation_unit_fragment is None:
+                    translation_unit_fragment = fragment
+                    translation_unit_fragment["definitions"] = {}
 
-            #         if (
-            #             relevant_fragments_dict.get(contained_fragment["loc"])
-            #             is not None
-            #         ):
-            #             contained_fragment = relevant_fragments_dict.get(
-            #                 contained_fragment["loc"]
-            #             )
-
-            #         contained_fragment["phyiscalLoc"] = fragment
-            #         relevant_fragments_dict[contained_fragment["loc"]] = (
-            #             contained_fragment
-            #         )
-            #         containment_dict[contained_fragment.get("fragmentType")] = (
-            #             relevant_fragments_dict
-            #         )
+                contained_fragment = parse_M3_loc_statement(rel[1])
+                if (
+                    contained_fragment.get("fragmentType")
+                    in constants.LOGICAL_LOC_TYPES
+                ):
+                    translation_unit_fragment["definitions"].update({contained_fragment.get("loc"): contained_fragment})
+                
+                translation_unit_dict[translation_unit_fragment["loc"]] = translation_unit_fragment
             case (
                 constants.M3_CPP_CLASS_TYPE
                 | constants.M3_CPP_CLASS_TEMPLATE_TYPE
