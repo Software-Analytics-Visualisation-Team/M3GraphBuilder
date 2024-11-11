@@ -1,7 +1,7 @@
 import os
 import json
 import argparse
-from M3GraphBuilder.graph.validator import find_node_discrpenecies
+from M3GraphBuilder.graphlib.validator import find_node_discrpenecies
 from M3GraphBuilder.converters import Cpp
 
 
