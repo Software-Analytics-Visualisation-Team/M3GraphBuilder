@@ -2,7 +2,6 @@ import re
 import M3GraphBuilder.converters.constants as constants
 import M3GraphBuilder.logging_utils as logging
 
-
 logger = logging.setup_logger(
     "m3_utils_logger", "m3_utils_logfile.log", logging.logging.DEBUG
 )
@@ -179,7 +178,7 @@ def parse_M3_containment(m3):
     partial_specializations_dict = {}
     translation_unit_dict = {}
 
-    containment_dict = {
+    containment_dicts = {
         constants.M3_CPP_NAMESPACE_TYPE: namespaces_dict,
         constants.M3_CPP_CLASS_TYPE: classes_dict,
         constants.M3_CPP_CLASS_TEMPLATE_TYPE: templates_dict,
@@ -189,65 +188,40 @@ def parse_M3_containment(m3):
         constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
     }
 
+    def update_namespace_fragment(namespace_fragment, contained_fragment):
+        if contained_fragment["fragmentType"] in constants.NAMESPACE_CHILD_FRAGMENT_TYPES:
+            namespace_fragment = update_fragment_contains(namespace_fragment, contained_fragment["loc"])
+            update_or_add_fragment(contained_fragment)
+        return namespace_fragment
+    
+    def update_translation_unit_fragment(translation_unit_fragment, contained_fragment):
+        if contained_fragment["fragmentType"] in constants.LOGICAL_LOC_TYPES:
+            translation_unit_fragment["definitions"].update({contained_fragment["loc"]: contained_fragment})
+        return translation_unit_fragment
+    
+    def update_or_add_fragment(fragment):
+        fragment_type = fragment["fragmentType"]
+        relevant_dict = containment_dicts[fragment_type]
+        if fragment["loc"] not in relevant_dict:
+            relevant_dict[fragment["loc"]] = fragment
+
     for rel in containment_data:
-        fragment = parse_M3_loc_statement(rel[0])
+        parent_fragment = parse_M3_loc_statement(rel[0])
+        child_fragment = parse_M3_loc_statement(rel[1])
 
-        match fragment["fragmentType"]:
+
+        match parent_fragment["fragmentType"]:
             case constants.M3_CPP_NAMESPACE_TYPE:
-                isNewNamespace = False
-                namespace_fragment = namespaces_dict.get(fragment["loc"])
-
-                if namespace_fragment is None:
-                    namespace_fragment = fragment
-                    isNewNamespace = True
-
-                contained_fragment = parse_M3_loc_statement(rel[1])
-                isContainedFragmentRelevant = (
-                    contained_fragment.get("fragmentType")
-                    in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
-                )
-                # print(isNewNamespace, namespace_fragment)
-                # print(namespaces_dict)
-
-                if isContainedFragmentRelevant:
-                    namespace_fragment = update_fragment_contains(
-                        namespace_fragment,
-                        contained_fragment["loc"],
-                    )
-
-                    relevant_fragments_dict = containment_dict[
-                        contained_fragment.get("fragmentType")
-                    ]
-                    found_fragment = relevant_fragments_dict.get(
-                        contained_fragment["loc"]
-                    )
-
-                    if found_fragment is None:
-                        relevant_fragments_dict[contained_fragment["loc"]] = (
-                            contained_fragment
-                        )
-                        containment_dict[contained_fragment.get("fragmentType")] = (
-                            relevant_fragments_dict
-                        )
-
-                if isNewNamespace or isContainedFragmentRelevant:
-                    namespaces_dict[namespace_fragment["loc"]] = namespace_fragment
+                namespace_fragment = containment_dicts[constants.M3_CPP_NAMESPACE_TYPE].get(parent_fragment["loc"], parent_fragment)
+                namespace_fragment = update_namespace_fragment(namespace_fragment, child_fragment)
+                containment_dicts[constants.M3_CPP_NAMESPACE_TYPE][parent_fragment["loc"]] = namespace_fragment
 
             case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
-                translation_unit_fragment = translation_unit_dict.get(fragment["loc"])
-
-                if translation_unit_fragment is None:
-                    translation_unit_fragment = fragment
-                    translation_unit_fragment["definitions"] = {}
-
-                contained_fragment = parse_M3_loc_statement(rel[1])
-                if (
-                    contained_fragment.get("fragmentType")
-                    in constants.LOGICAL_LOC_TYPES
-                ):
-                    translation_unit_fragment["definitions"].update({contained_fragment.get("loc"): contained_fragment})
+                translation_unit_fragment = containment_dicts[constants.M3_CPP_TRANSLATION_UNIT_TYPE].get(parent_fragment["loc"], parent_fragment)
+                translation_unit_fragment.setdefault("definitions", {})
+                translation_unit_fragment = update_translation_unit_fragment(translation_unit_fragment, child_fragment)
+                containment_dicts[constants.M3_CPP_TRANSLATION_UNIT_TYPE][parent_fragment["loc"]] = translation_unit_fragment
                 
-                translation_unit_dict[translation_unit_fragment["loc"]] = translation_unit_fragment
             case (
                 constants.M3_CPP_CLASS_TYPE
                 | constants.M3_CPP_CLASS_TEMPLATE_TYPE
@@ -255,34 +229,15 @@ def parse_M3_containment(m3):
                 | constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
                 | constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
             ):
-                relevant_fragments_dict = containment_dict[fragment.get("fragmentType")]
-                existing_structure_fragment = (
-                    True
-                    if relevant_fragments_dict.get(fragment["loc"]) is not None
-                    else False
-                )
+                relevant_dict = containment_dicts[parent_fragment["fragmentType"]]
+                structure_fragment = relevant_dict.get(parent_fragment["loc"], parent_fragment)
 
-                contained_fragment = parse_M3_loc_statement(rel[1])
+                if child_fragment["fragmentType"] in constants.NESTED_STRUCTURES_FRAGMENT_TYPES:
+                    structure_fragment = update_fragment_contains(structure_fragment, child_fragment["loc"])
+                    
+                relevant_dict[structure_fragment["loc"]] = structure_fragment
 
-                if (
-                    contained_fragment.get("fragmentType")
-                    in constants.NESTED_STRUCTURES_FRAGMENT_TYPES
-                ):
-                    if existing_structure_fragment:
-                        fragment = update_fragment_contains(
-                            relevant_fragments_dict[fragment["loc"]],
-                            contained_fragment["loc"],
-                        )
-                    else:
-                        fragment = update_fragment_contains(
-                            fragment,
-                            contained_fragment["loc"],
-                        )
-
-                relevant_fragments_dict[fragment["loc"]] = fragment
-                containment_dict[fragment.get("fragmentType")] = relevant_fragments_dict
-
-    return containment_dict
+    return containment_dicts
 
 
 def parse_M3_callGraph(m3, operations):
