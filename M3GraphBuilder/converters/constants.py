@@ -64,6 +64,7 @@ LOGICAL_LOC_TYPES = [
     M3_CPP_CLASS_SPECIALIZATION_TYPE,
     M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
     M3_CPP_CLASS_TEMPLATE_TYPE,
+    M3_CPP_FUNCTION_TYPE
 ]
 
 # Types of containers and structure that have a "contains" relationship to a sub-container (e.g., sub-namespace) or sub-structure (e.g., nested class)

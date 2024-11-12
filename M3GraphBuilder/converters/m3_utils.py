@@ -177,6 +177,7 @@ def parse_M3_containment(m3):
     specializations_dict = {}
     partial_specializations_dict = {}
     translation_unit_dict = {}
+    functions_dict = {}
 
     containment_dicts = {
         constants.M3_CPP_NAMESPACE_TYPE: namespaces_dict,
@@ -186,6 +187,7 @@ def parse_M3_containment(m3):
         constants.M3_CPP_CLASS_SPECIALIZATION_TYPE: specializations_dict,
         constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE: partial_specializations_dict,
         constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
+        constants.M3_CPP_FUNCTION_TYPE: functions_dict,
     }
 
     def update_namespace_fragment(namespace_fragment, contained_fragment):
@@ -197,6 +199,7 @@ def parse_M3_containment(m3):
     def update_translation_unit_fragment(translation_unit_fragment, contained_fragment):
         if contained_fragment["fragmentType"] in constants.LOGICAL_LOC_TYPES:
             translation_unit_fragment["definitions"].update({contained_fragment["loc"]: contained_fragment})
+            update_or_add_fragment(contained_fragment)
         return translation_unit_fragment
     
     def update_or_add_fragment(fragment):
@@ -209,7 +212,6 @@ def parse_M3_containment(m3):
         parent_fragment = parse_M3_loc_statement(rel[0])
         child_fragment = parse_M3_loc_statement(rel[1])
 
-
         match parent_fragment["fragmentType"]:
             case constants.M3_CPP_NAMESPACE_TYPE:
                 namespace_fragment = containment_dicts[constants.M3_CPP_NAMESPACE_TYPE].get(parent_fragment["loc"], parent_fragment)
@@ -221,7 +223,7 @@ def parse_M3_containment(m3):
                 translation_unit_fragment.setdefault("definitions", {})
                 translation_unit_fragment = update_translation_unit_fragment(translation_unit_fragment, child_fragment)
                 containment_dicts[constants.M3_CPP_TRANSLATION_UNIT_TYPE][parent_fragment["loc"]] = translation_unit_fragment
-                
+
             case (
                 constants.M3_CPP_CLASS_TYPE
                 | constants.M3_CPP_CLASS_TEMPLATE_TYPE

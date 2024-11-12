@@ -749,16 +749,17 @@ class Cpp:
 
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
-
-
         add_methods_dict = self.add_methods(
             declaredType_dicts.get("methods"),
             declarations_dict.get("parameters"),
         )
         # files_for_methods = add_methods_dict.get("files_for_methods_set")
 
+        functions_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TYPE)
+        functions_dict.update(declaredType_dicts.get("functions"))
+
         self.add_functions(
-            declaredType_dicts.get("functions"),
+            functions_dict,
             namespaces_dict,
             declarations_dict.get("parameters"),
         )
