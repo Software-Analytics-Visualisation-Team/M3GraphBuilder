@@ -117,7 +117,6 @@ class Cpp:
                 )
             
             case "contains-definition":
-                print(content)
                 edge_id = hash(content["translationUnit"] + "" + content["definition"])
                 self.lpg["elements"]["edges"].append(
                     {
