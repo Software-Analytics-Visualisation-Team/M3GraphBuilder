@@ -168,6 +168,28 @@ def parse_M3_declaredType(m3):
     return result
 
 
+def parse_M3_macro_expansions(m3):
+    macro_expansions_data = m3["macroExpansions"]
+    macros = {}
+
+    def update_macro_fragment(macro_fragment, macro_location):
+        number_of_expansions_in_file = macro_fragment["fileExpansions"].get(macro_location["file"], 0)
+        macro_fragment["fileExpansions"][macro_location["file"]] = number_of_expansions_in_file + 1
+        return macro_fragment
+
+    for rel in macro_expansions_data:
+        macro_location = get_fragment_declaration_location(rel[0])
+        macro_fragment = parse_M3_loc_statement(rel[1])
+        
+        current_macro = macros.setdefault(macro_fragment["loc"], {"loc": macro_fragment["loc"], "fileExpansions": {}})
+        
+        current_macro = update_macro_fragment(current_macro, macro_location)
+        
+        macros[macro_fragment["loc"]] = current_macro
+    
+    return macros
+
+
 def parse_M3_containment(m3):
     containment_data = m3["containment"]
     namespaces_dict = {}
@@ -513,6 +535,13 @@ def parse_M3_loc_statement(loc_statement):
             )
             fragment["loc"] = loc_path
             fragment["fragmentType"] = constants.M3_CPP_PARAMETER_TYPE
+            fragment["simpleName"] = simple_name
+        case constants.M3_CPP_MACRO_TYPE:  # parse macro loc
+            loc_path, fragment_parent, simple_name = parse_rascal_loc(
+                loc_statement, constants.M3_CPP_MACRO_TYPE
+            )
+            fragment["loc"] = loc_path
+            fragment["fragmentType"] = constants.M3_CPP_MACRO_TYPE
             fragment["simpleName"] = simple_name
         case _:
             fragment["fragmentType"] = constants.UNSUPPORTED_TYPE

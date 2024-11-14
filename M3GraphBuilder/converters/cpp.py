@@ -261,6 +261,14 @@ class Cpp:
         )
 
         match kind:
+            case "macro":
+                node_id = content[1].get("loc")
+                properties = {
+                    "simpleName": content[1].get("loc"),
+                    "description": "\n".join(f"{file_path}: {count}" for file_path, count in content[1].get("fileExpansions").items()),
+                    "kind": "macro",
+                }
+                labels = ["Structure"]
             case "translation_unit":
                 node_id = content[1].get("loc")
                 properties = {
@@ -481,6 +489,13 @@ class Cpp:
         # }
 
         # return result
+    def add_macros(self, macros):
+        logger.info("Adding macros")
+
+        for macro in macros.items():
+            self.add_nodes("macro", macro)
+
+        logger.info(f"Successfully added {len(macros)} macros to the graph.")
 
     def add_templates(self, templates):
         logger.info("Adding templates")
@@ -710,6 +725,9 @@ class Cpp:
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
         containment_dict = m3_utils.parse_M3_containment(self.parsed)
+        macros_dict = m3_utils.parse_M3_macro_expansions(self.parsed)
+
+        self.add_macros(macros_dict)
 
         translation_units = declarations_dict.get("translation_units")
         containment_translation_units = containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
@@ -717,7 +735,6 @@ class Cpp:
 
         self.add_translation_units(translation_units)
         
-
         namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
         self.add_namespaces(namespaces_dict)
         self.containers = deepcopy(namespaces_dict)
