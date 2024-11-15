@@ -15,4 +15,4 @@ jobs:
       - name: Black Code Formatter
         uses: lgeiger/black-action@v1.0.1
         with:
-          args: "M3GraphBuilder/converters/ M3GraphBuilder/graph/"  # Replace with the specific files or directories to format
+          args: "converters/ " 
