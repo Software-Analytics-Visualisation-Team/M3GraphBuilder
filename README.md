@@ -1,4 +1,5 @@
 # M3GraphBuilder
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 This is a python tool using a command line interface (CLI) which can be used to build a [labeled property graph (LPG) representation for software structure](https://github.com/rsatrioadi/phd/blob/main/representation.md) out of a [M3 model](https://www.rascal-mpl.org/docs/Packages/Clair/API/lang/cpp/M3/) - a model obtained by parsing C or C++ code, containing rich information about the source code.
 
