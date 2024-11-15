@@ -12,6 +12,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: List workspace contents
+        run: ls -R ${{ github.workspace }}
+        
       - name: Black Code Formatter
         uses: lgeiger/black-action@v1.0.1
         with:
