@@ -115,7 +115,7 @@ class Cpp:
                         }
                     }
                 )
-            
+
             case "contains-definition":
                 edge_id = hash(content["translationUnit"] + "" + content["definition"])
                 self.lpg["elements"]["edges"].append(
@@ -265,7 +265,10 @@ class Cpp:
                 node_id = content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("loc"),
-                    "description": "\n".join(f"{file_path}: {count}" for file_path, count in content[1].get("fileExpansions").items()),
+                    "description": "\n".join(
+                        f"{file_path}: {count}"
+                        for file_path, count in content[1].get("fileExpansions").items()
+                    ),
                     "kind": "macro",
                 }
                 labels = ["Structure"]
@@ -440,7 +443,10 @@ class Cpp:
 
             if tu[1].get("definitions") is not None:
                 for definition in tu[1].get("definitions").items():
-                    self.add_edges("contains-definition", {"translationUnit" : tu[0] , "definition" : definition[0]})
+                    self.add_edges(
+                        "contains-definition",
+                        {"translationUnit": tu[0], "definition": definition[0]},
+                    )
 
         logger.info(
             f"Successfully added {len(translation_units)} translation units to the graph."
@@ -489,6 +495,7 @@ class Cpp:
         # }
 
         # return result
+
     def add_macros(self, macros):
         logger.info("Adding macros")
 
@@ -730,11 +737,13 @@ class Cpp:
         self.add_macros(macros_dict)
 
         translation_units = declarations_dict.get("translation_units")
-        containment_translation_units = containment_dict.get(constants.M3_CPP_TRANSLATION_UNIT_TYPE)
+        containment_translation_units = containment_dict.get(
+            constants.M3_CPP_TRANSLATION_UNIT_TYPE
+        )
         translation_units.update(containment_translation_units)
 
         self.add_translation_units(translation_units)
-        
+
         namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
         self.add_namespaces(namespaces_dict)
         self.containers = deepcopy(namespaces_dict)
