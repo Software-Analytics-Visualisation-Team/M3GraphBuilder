@@ -1,0 +1,10 @@
+[project]
+name=CPP_Calculator
+desc=An extremelly optimized calculator application written in C++
+
+[output]
+path=C:/Development/Software-Graphs/M3GB/
+
+[logging]
+path=C:/Development/Software-Analytics-Visualisation-Team/M3GraphBuilder/logs
+verbose=False

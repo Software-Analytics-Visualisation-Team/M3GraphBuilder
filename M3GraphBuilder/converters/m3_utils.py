@@ -1,12 +1,7 @@
 import re
 from typing import Any, Dict
 import M3GraphBuilder.converters.constants as constants
-import M3GraphBuilder.logging_utils as logging
-
-logger = logging.setup_logger(
-    "m3_utils_logger", "m3_utils_logfile.log", logging.logging.DEBUG
-)
-
+import logging
 
 def parse_M3_function_Definitions(m3, fragments_dict):
     function_Definitions_data = m3["functionDefinitions"]
@@ -101,7 +96,7 @@ def parse_M3_declarations(m3, fragments_dict=None, fragments_type=None):
             #     else:
             #         files_containing_fragments_set.add(location["file"])
     if fragments_dict is not None:
-        logger.debug(
+        logging.debug(
             "Located %s fragments out of %s fragments of type %s.",
             counter_for_located_fragments,
             fragments_type,
@@ -310,8 +305,8 @@ def parse_M3_callGraph(m3, operations):
         # if re.match(constants.M3_FUNCTION_LOC_SCM, rel[0]) or re.match(
         #             constants.M3_METHOD_LOC_SCM, rel[0]
         # ) and source.get("loc") not in operations.keys():
-        #     logger.debug("Invocation source not in operations")
-        #     logger.debug(source)
+        #     logging.debug("Invocation source not in operations")
+        #     logging.debug(source)
 
         try:
             if (
@@ -337,8 +332,8 @@ def parse_M3_callGraph(m3, operations):
 
                     # TODO: If verbose
                     # if target.get("loc") not in operations.keys():
-                    #     logger.debug("Invocation target not in operations")
-                    #     logger.debug(target)
+                    #     logging.debug("Invocation target not in operations")
+                    #     logging.debug(target)
 
                     invocation_id = source.get("loc") + "--" + target.get("loc")
 
@@ -352,12 +347,12 @@ def parse_M3_callGraph(m3, operations):
 
                         invocations[invocation_id] = invocation
                     else:
-                        logger.debug("updating weight of existing invocation")
+                        logging.debug("updating weight of existing invocation")
                         existing_invocation["weight"] += 1
                         invocations[invocation_id] = existing_invocation
 
         except Exception as e:
-            logger.error("exception: %s", e)
+            logging.error("exception: %s", e)
 
     for rel in methodOverrides_data:
         try:
@@ -384,8 +379,8 @@ def parse_M3_callGraph(m3, operations):
 
                     # TODO: If verbose
                     # if target.get("loc") not in operations.keys():
-                    #     logger.debug("Invocation target not in operations")
-                    #     logger.debug(target)
+                    #     logging.debug("Invocation target not in operations")
+                    #     logging.debug(target)
 
                     invocation_id = source.get("loc") + "--" + target.get("loc")
 
@@ -399,15 +394,15 @@ def parse_M3_callGraph(m3, operations):
 
                         invocations[invocation_id] = invocation
                     else:
-                        logger.debug("updating weight of existing invocation")
+                        logging.debug("updating weight of existing invocation")
                         existing_invocation["weight"] += 1
                         invocations[invocation_id] = existing_invocation
 
         except Exception as e:
-            logger.error("exception: %s", e)
+            logging.error("exception: %s", e)
 
     if len(unknown_operations) > 0:
-        logger.debug(
+        logging.debug(
             "[VERBOSE] Found %s unknown operations when parsing callGraph",
             len(unknown_operations),
         )
@@ -423,7 +418,7 @@ def parse_M3_callGraph(m3, operations):
 def parse_M3_extends(m3, fragments, fragments_type):
     extension_counter = 0
 
-    logger.debug("Adding extensions for structure type: %s", fragments_type)
+    logging.debug("Adding extensions for structure type: %s", fragments_type)
 
     extends_data = m3["extends"]
 
@@ -439,7 +434,7 @@ def parse_M3_extends(m3, fragments, fragments_type):
                 fragments[fragment[1]["loc"]] = fragment[1]
                 extension_counter = extension_counter + 1
 
-    logger.debug("Added %s extensions", extension_counter)
+    logging.debug("Added %s extensions", extension_counter)
 
     return fragments
 

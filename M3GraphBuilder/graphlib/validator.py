@@ -1,7 +1,7 @@
 import json
 
 
-def find_node_discrpenecies(lpg_path):
+def find_node_discrepencies(lpg_path):
     try:
         with open(lpg_path, "r") as lpg:
             # Parse the JSON data
