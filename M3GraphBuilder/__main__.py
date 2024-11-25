@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 import logging
+from M3GraphBuilder.graphlib import Arvisaninator
 from M3GraphBuilder.graphlib.validator import find_node_discrepencies
 from M3GraphBuilder.converters import Cpp
 from M3GraphBuilder.utils import load_config_from_ini_file, setup_logging, validate_dir
@@ -52,17 +53,28 @@ def create_graph(args):
 
 def create_hierarchy(args):
     """Handles the `create-hierarchy` flow."""
-    try:
+    # try:
         # Placeholder for logic to extract nodes and edges from a given graph
-        graph_path = args.graph
-        output_folder = args.output
+    graph_path = args.graph
+    output_folder = args.output if args.output else M3GB_config["output"]["path"]
+    validate_dir(output_folder)
 
-        # Placeholder: Add extraction logic
+    with open(graph_path, "r") as graph_file:
+        graph_data = json.load(graph_file)
+        logging.info("Graph successfully loaded. Building hierachy...")
+
+        arvisaninator = Arvisaninator(M3GB_config, graph_path, output_folder)
+        arvisaninator.export()
         logging.info(
-            f"Extracted nodes and edges from graph at '{graph_path}' into '{output_folder}'"
+            f"Hierachy created successfully at '{output_folder}'"
         )
-    except Exception as e:
-        logging.error(f"Failed to extract components: {e}")
+
+    # Placeholder: Add extraction logic
+    logging.info(
+        f"Extracted nodes and edges from graph at '{graph_path}' into '{output_folder}'"
+    )
+    # except Exception as e:
+    #     logging.error(f"Failed to create hierarchy: {e}")
 
 
 def merge_graphs(args):
@@ -129,7 +141,7 @@ def main():
         "-g", "--graph", required=True, help="Path to the graph file."
     )
     extract_components_parser.add_argument(
-        "-o", "--output", required=True, help="Output folder for components."
+        "-o", "--output", help="Output folder for components."
     )
     extract_components_parser.set_defaults(func=create_hierarchy)
 
