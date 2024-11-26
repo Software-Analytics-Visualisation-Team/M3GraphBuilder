@@ -439,7 +439,7 @@ class Arvisaninator:
             return nodes, edges
 
         def write_to_csv(filename, header_row, rows):
-            with open(self.output_path + "\\" + filename, mode='w', newline='') as file:
+            with open(self.output_path + filename, mode='w', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(header_row)
                 writer.writerows(rows)

@@ -15,7 +15,7 @@ def create_graph(args):
     verbose_logging = M3GB_config.get("logging").get("verbose")
     graph_name = args.name or os.path.splitext(os.path.basename(args.model))[0]
 
-    output_folder = args.output if args.output else M3GB_config["output"]["path"]
+    output_folder = args.output if args.output else M3GB_config["output"]["path"] + "/ClassViz/"
     validate_dir(output_folder)
     output_path = os.path.join(output_folder, f"{graph_name}.lpg.json")
     try:
@@ -56,7 +56,7 @@ def create_hierarchy(args):
     # try:
         # Placeholder for logic to extract nodes and edges from a given graph
     graph_path = args.graph
-    output_folder = args.output if args.output else M3GB_config["output"]["path"]
+    output_folder = args.output if args.output else M3GB_config["output"]["path"] + "/ARViSAN/"
     validate_dir(output_folder)
 
     with open(graph_path, "r") as graph_file:
