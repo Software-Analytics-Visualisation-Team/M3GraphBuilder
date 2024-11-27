@@ -274,7 +274,7 @@ class Arvisaninator:
         return mapping
     
     
-    def create_contains_edges(self, components, sublayers, sublayer_to_component, orphan_modules):
+    def create_contains_edges(self, components, sublayers, sublayer_to_component, orphan_modules, package_modules):
         """
         Creates edges that define CONTAINS relationships between the domain, application and components, 
 
@@ -320,6 +320,11 @@ class Arvisaninator:
             if 'Container' in self.data.nodes[edge.source].labels and 'Structure' in self.data.nodes[edge.target].labels
         )
 
+        # Create containment edge for modules (fromsublayers)
+        containment_edges.extend(
+            self.create_edge(module[0].removeprefix("mod:"), module[0], contains_edge_label)
+            for module in package_modules
+        )
 
         return containment_edges
     
@@ -382,9 +387,27 @@ class Arvisaninator:
             if edge.source != edge.target:
                 # Check if source or target starts with "mod:"
                 if edge.source.startswith("mod:"):
-                    package_modules.add(edge.source)
+                    node_id = edge.source.removeprefix("mod:")
+                    package_modules.add(
+                        self.create_node(
+                            node_id=edge.source,
+                            label="Module",
+                            full_name=edge.source,
+                            simple_name=self.data.nodes[node_id].properties["simpleName"],
+                            color=self.roleStereotypeColors.get(node_id, "Unknown"),
+                            dep_profile_cat=self.dependencyProfiles.get(node_id, None))
+                    )
                 if edge.target.startswith("mod:"):
-                    package_modules.add(edge.target)
+                    node_id = edge.target.removeprefix("mod:")
+                    package_modules.add(
+                        self.create_node(
+                            node_id=edge.target,
+                            label="Module",
+                            full_name=edge.target,
+                            simple_name=self.data.nodes[node_id].properties["simpleName"],
+                            color=self.roleStereotypeColors.get(node_id, "Unknown"),
+                            dep_profile_cat=self.dependencyProfiles.get(node_id, None))
+                        )
                     
                 # Add the call to the list
                 calls.append((
@@ -424,15 +447,11 @@ class Arvisaninator:
                 *self.create_component_nodes(components),
                 *self.create_sublayer_nodes(sublayers),
                 *modules,
-                *orphan_modules
+                *orphan_modules,
+                *package_modules,
             ]
-            
-            nodes += package_modules
 
-
-
-
-            contains_edges = self.create_contains_edges(components, sublayers, sublayer_to_component, orphan_structures)
+            contains_edges = self.create_contains_edges(components, sublayers, sublayer_to_component, orphan_structures, package_modules)
             edges = contains_edges
             edges += calls_edges
 
