@@ -189,7 +189,7 @@ class Arvisaninator:
 
         return [namespace[-1] for namespace in top_level_namespaces], sublayer_to_component
 
-    def compute_dependency_profiles(self, edges_calls):
+    def compute_dependency_profiles(self, raw_edges):
         """
         Computes dependency profiles for given edges.
         """
@@ -207,7 +207,7 @@ class Arvisaninator:
         
         dependency_profiles = defaultdict(list)
 
-        for edge in edges_calls:
+        for edge in raw_edges:
             src_id, tgt_id = edge.source, edge.target
             if parents.get(src_id) and parents.get(tgt_id) and parents[src_id] != parents[tgt_id]:
                 dependency_profiles[src_id].append('out')
@@ -274,7 +274,7 @@ class Arvisaninator:
         return mapping
     
     
-    def create_contains_edges(self, components, sublayers, sublayer_to_component, orphan_modules, package_modules):
+    def create_contains_edges(self, components, sublayers, sublayer_to_component, orphan_modules, namespace_modules):
         """
         Creates edges that define CONTAINS relationships between the domain, application and components, 
 
@@ -323,7 +323,7 @@ class Arvisaninator:
         # Create containment edge for modules (fromsublayers)
         containment_edges.extend(
             self.create_edge(module[0].removeprefix("mod:"), module[0], contains_edge_label)
-            for module in package_modules
+            for module in namespace_modules
         )
 
         return containment_edges
@@ -334,9 +334,9 @@ class Arvisaninator:
         
         Returns:
             tuple: A tuple containing:
-                - edges_calls (list): List of edges representing calls.
+                - raw_edges (list): List of edges representing calls.
                 - calls (list): List of call relationships formatted for export.
-                - package_modules (set): Set of package modules.
+                - namespace_modules (set): Set of namespace modules.
         """
         def create_edge_from_data(edge, edge_type):
             """Helper function to create a new edge."""
@@ -358,12 +358,12 @@ class Arvisaninator:
         hasScript_edges = []
         invokes_edges = []
         container_nodes = set()
-        edges_calls = []
+        raw_edges = []
 
         # Check if 'calls' edges exist, else combine 'hasScript' and 'invokes'
         if self.data.edges.get('calls'):
             print("Found calls")
-            edges_calls = self.data.edges['calls']
+            raw_edges = self.data.edges['calls']
         else:
             print("No calls")
             # Handle 'hasScript' edges
@@ -377,18 +377,18 @@ class Arvisaninator:
             ]
             
             # Combine edges
-            edges_calls = lift(hasScript_edges, invokes_edges)
+            raw_edges = lift(hasScript_edges, invokes_edges)
 
         # ("id", ":TYPE", ":START_ID", ":END_ID", "references", "dependencyTypes", "nrDependencies:INT", "nrCalls:INT")
-        package_modules = set()
+        namespace_modules = set()
         calls = []
         
-        for edge in edges_calls:
+        for edge in raw_edges:
             if edge.source != edge.target:
                 # Check if source or target starts with "mod:"
                 if edge.source.startswith("mod:"):
                     node_id = edge.source.removeprefix("mod:")
-                    package_modules.add(
+                    namespace_modules.add(
                         self.create_node(
                             node_id=edge.source,
                             label="Module",
@@ -399,7 +399,7 @@ class Arvisaninator:
                     )
                 if edge.target.startswith("mod:"):
                     node_id = edge.target.removeprefix("mod:")
-                    package_modules.add(
+                    namespace_modules.add(
                         self.create_node(
                             node_id=edge.target,
                             label="Module",
@@ -421,7 +421,7 @@ class Arvisaninator:
                     None
                 ))
 
-        return edges_calls, calls, package_modules
+        return raw_edges, calls, namespace_modules
 
 
     def export(self):
@@ -430,11 +430,9 @@ class Arvisaninator:
         """
         def generate_nodes_and_edges():
 
-            edge_data, calls_edges, package_modules = self.create_calls_edges()
+            raw_edges, calls_edges, namespace_modules = self.create_calls_edges()
 
-            self.dependencyProfiles = self.compute_dependency_profiles(edge_data)
-            
-            #TODO: Find suitable name for edge_data
+            self.dependencyProfiles = self.compute_dependency_profiles(raw_edges)
         
             sublayers = self.extract_sublayers()
             components, sublayer_to_component = self.extract_components(sublayers)
@@ -448,12 +446,12 @@ class Arvisaninator:
                 *self.create_sublayer_nodes(sublayers),
                 *modules,
                 *orphan_modules,
-                *package_modules,
+                *namespace_modules,
             ]
 
-            contains_edges = self.create_contains_edges(components, sublayers, sublayer_to_component, orphan_structures, package_modules)
-            edges = contains_edges
-            edges += calls_edges
+            contains_edges = self.create_contains_edges(components, sublayers, sublayer_to_component, orphan_structures, namespace_modules)
+            
+            edges = contains_edges + calls_edges
 
             return nodes, edges
 
