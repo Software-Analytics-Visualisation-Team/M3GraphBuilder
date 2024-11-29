@@ -2,6 +2,7 @@ import os
 import logging
 import configparser
 
+
 def setup_logging(config, log_name):
     """Set up logging to write logs to a specific file path."""
 
@@ -16,10 +17,13 @@ def setup_logging(config, log_name):
         level=logging.INFO,  # Set the minimum log level
         format="%(asctime)s - %(levelname)s - %(message)s",  # Log message format
         handlers=[
-            logging.FileHandler(f"{log_file_path}\\{log_name}", mode="a"),  # Append logs to the file
-            logging.StreamHandler()  # Also output logs to the console
-        ]
+            logging.FileHandler(
+                f"{log_file_path}\\{log_name}", mode="a"
+            ),  # Append logs to the file
+            logging.StreamHandler(),  # Also output logs to the console
+        ],
     )
+
 
 def validate_dir(path):
     """If directory does not exist create it."""
@@ -38,6 +42,7 @@ def load_config_from_ini_file():
     config = configparser.ConfigParser()
     config.read(config_path)
     return {section: dict(config.items(section)) for section in config.sections()}
+
 
 def get_model_file_name(file_path):
     """Extract the base name of a JSON file."""

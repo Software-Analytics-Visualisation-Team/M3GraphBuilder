@@ -3,6 +3,7 @@ from typing import Any, Dict
 import M3GraphBuilder.converters.constants as constants
 import logging
 
+
 def parse_M3_function_Definitions(m3, fragments_dict):
     function_Definitions_data = m3["functionDefinitions"]
     unlocated_fragments_dict = {}
@@ -167,7 +168,12 @@ def parse_M3_macro_expansions(m3):
         macro_fragment = parse_M3_loc_statement(rel[1])
 
         current_macro = macros.setdefault(
-            macro_fragment["loc"], {"loc": macro_fragment["loc"], "fragmentType": macro_fragment["fragmentType"], "fileExpansions": {}}
+            macro_fragment["loc"],
+            {
+                "loc": macro_fragment["loc"],
+                "fragmentType": macro_fragment["fragmentType"],
+                "fileExpansions": {},
+            },
         )
 
         current_macro = update_macro_fragment(current_macro, macro_location)

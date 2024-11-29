@@ -58,9 +58,13 @@ class Cpp:
                         {
                             "data": {
                                 "id": edge_id,
-                                "source": base_fragment[1].get("fragmentType") + ":" + base_fragment[1].get("loc"),
+                                "source": base_fragment[1].get("fragmentType")
+                                + ":"
+                                + base_fragment[1].get("loc"),
                                 "properties": {"weight": 1},
-                                "target": content[1].get("fragmentType") + ":" + content[1].get("loc"),
+                                "target": content[1].get("fragmentType")
+                                + ":"
+                                + content[1].get("loc"),
                                 "labels": [kind],
                             }
                         }
@@ -105,9 +109,13 @@ class Cpp:
                     {
                         "data": {
                             "id": edge_id,
-                            "source": content[1]["source"].get("fragmentType") + ":" + content[1]["source"].get("loc"),
+                            "source": content[1]["source"].get("fragmentType")
+                            + ":"
+                            + content[1]["source"].get("loc"),
                             "properties": {"weight": content[1]["weight"]},
-                            "target": content[1]["target"].get("fragmentType") + ":" +content[1]["target"].get("loc"),
+                            "target": content[1]["target"].get("fragmentType")
+                            + ":"
+                            + content[1]["target"].get("loc"),
                             "labels": [kind],
                         }
                     }
@@ -134,15 +142,21 @@ class Cpp:
                         if contained_fragments is not None:
 
                             for child_fragment in contained_fragments:
-                                edge_id = hash(content[0]) + hash(child_fragment.get("loc"))
+                                edge_id = hash(content[0]) + hash(
+                                    child_fragment.get("loc")
+                                )
 
                                 self.lpg["elements"]["edges"].append(
                                     {
                                         "data": {
                                             "id": edge_id,
-                                            "source": content[1].get("fragmentType") + ":" + content[1].get("loc"),
+                                            "source": content[1].get("fragmentType")
+                                            + ":"
+                                            + content[1].get("loc"),
                                             "properties": {"weight": 1},
-                                            "target": child_fragment.get("fragmentType") + ":" + child_fragment.get("loc"),
+                                            "target": child_fragment.get("fragmentType")
+                                            + ":"
+                                            + child_fragment.get("loc"),
                                             "labels": [kind],
                                         }
                                     }
@@ -290,7 +304,11 @@ class Cpp:
 
             case "parameter":
                 node_id = (
-                    content[1].get("fragmentType") + ":" + content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                    content[1].get("fragmentType")
+                    + ":"
+                    + content[1].get("functionLoc")
+                    + "."
+                    + content[1].get("simpleName")
                 )
                 properties = {
                     "simpleName": content[1].get("simpleName"),
@@ -711,13 +729,35 @@ class Cpp:
             else:
                 self.add_nodes(
                     "function",
-                    tuple((loc_path, {"loc": loc_path, "fragmentType": operation_loc[1].get("fragmentType"), "simpleName": loc_fragment})),
+                    tuple(
+                        (
+                            loc_path,
+                            {
+                                "loc": loc_path,
+                                "fragmentType": operation_loc[1].get("fragmentType"),
+                                "simpleName": loc_fragment,
+                            },
+                        )
+                    ),
                 )
 
-                parent_node_id = self.structures.get(loc_fragment_parent).get("fragmentType") + ":" + loc_fragment_parent
+                parent_node_id = (
+                    self.structures.get(loc_fragment_parent).get("fragmentType")
+                    + ":"
+                    + loc_fragment_parent
+                )
                 self.add_edges(
                     "hasScript",
-                    tuple((loc_path, {"loc": loc_path, "fragmentType": operation_loc[1].get("fragmentType"), "parent": parent_node_id})),
+                    tuple(
+                        (
+                            loc_path,
+                            {
+                                "loc": loc_path,
+                                "fragmentType": operation_loc[1].get("fragmentType"),
+                                "parent": parent_node_id,
+                            },
+                        )
+                    ),
                 )
 
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
