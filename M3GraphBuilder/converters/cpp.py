@@ -32,7 +32,7 @@ class Cpp:
                 edge_id = hash(content[0])
                 source = content[1].get("parent")
                 properties = {"weight": 1}
-                target = content[1].get("loc")
+                target = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 labels = [kind]
 
             case "hasParameter":
@@ -58,9 +58,9 @@ class Cpp:
                         {
                             "data": {
                                 "id": edge_id,
-                                "source": base_fragment,
+                                "source": base_fragment[1].get("fragmentType") + ":" + base_fragment[1].get("loc"),
                                 "properties": {"weight": 1},
-                                "target": content[1].get("loc"),
+                                "target": content[1].get("fragmentType") + ":" + content[1].get("loc"),
                                 "labels": [kind],
                             }
                         }
@@ -105,9 +105,9 @@ class Cpp:
                     {
                         "data": {
                             "id": edge_id,
-                            "source": content[1]["source"],
+                            "source": content[1]["source"].get("fragmentType") + ":" + content[1]["source"].get("loc"),
                             "properties": {"weight": content[1]["weight"]},
-                            "target": content[1]["target"],
+                            "target": content[1]["target"].get("fragmentType") + ":" +content[1]["target"].get("loc"),
                             "labels": [kind],
                         }
                     }
@@ -134,15 +134,15 @@ class Cpp:
                         if contained_fragments is not None:
 
                             for child_fragment in contained_fragments:
-                                edge_id = hash(content[0]) + hash(child_fragment)
+                                edge_id = hash(content[0]) + hash(child_fragment.get("loc"))
 
                                 self.lpg["elements"]["edges"].append(
                                     {
                                         "data": {
                                             "id": edge_id,
-                                            "source": content[1].get("loc"),
+                                            "source": content[1].get("fragmentType") + ":" + content[1].get("loc"),
                                             "properties": {"weight": 1},
-                                            "target": child_fragment,
+                                            "target": child_fragment.get("fragmentType") + ":" + child_fragment.get("loc"),
                                             "labels": [kind],
                                         }
                                     }
@@ -259,7 +259,7 @@ class Cpp:
 
         match kind:
             case "macro":
-                node_id = content[1].get("loc")
+                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("loc"),
                     "description": "\n".join(
@@ -269,8 +269,9 @@ class Cpp:
                     "kind": "macro",
                 }
                 labels = ["Structure"]
+
             case "translation_unit":
-                node_id = content[1].get("loc")
+                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "description": content[1].get("physicalLoc"),
@@ -278,13 +279,8 @@ class Cpp:
                 }
                 labels = ["Structure"]
 
-            # case "file":
-            #     node_id = content
-            #     properties = {"simpleName": content, "kind": kind}
-            #     labels = ["Container"]
-
             case "function":
-                node_id = content[1].get("loc")
+                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
                     "simpleName": content[1]["simpleName"],
                     "description": location,
@@ -294,7 +290,7 @@ class Cpp:
 
             case "parameter":
                 node_id = (
-                    content[1].get("functionLoc") + "." + content[1].get("simpleName")
+                    content[1].get("fragmentType") + ":" + content[1].get("functionLoc") + "." + content[1].get("simpleName")
                 )
                 properties = {
                     "simpleName": content[1].get("simpleName"),
@@ -304,7 +300,7 @@ class Cpp:
                 labels = ["Variable"]
 
             case "method":
-                node_id = content[1].get("loc")
+                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
@@ -319,7 +315,7 @@ class Cpp:
                 | "specialization"
                 | "partial_specialization"
             ):
-                node_id = content[1].get("loc")
+                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
@@ -328,7 +324,7 @@ class Cpp:
                 labels = ["Structure"]
 
             case "namespace":
-                node_id = content[1].get("loc")
+                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": "package",
@@ -702,9 +698,9 @@ class Cpp:
 
         unknown_operations = callGraph_data.get("unknown_operations")
 
-        for operation_loc in unknown_operations:
+        for operation_loc in unknown_operations.items():
             loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(
-                operation_loc
+                operation_loc[1].get("loc")
             )
 
             if (
@@ -715,12 +711,13 @@ class Cpp:
             else:
                 self.add_nodes(
                     "function",
-                    tuple((loc_path, {"loc": loc_path, "simpleName": loc_fragment})),
+                    tuple((loc_path, {"loc": loc_path, "fragmentType": operation_loc[1].get("fragmentType"), "simpleName": loc_fragment})),
                 )
 
+                parent_node_id = self.structures.get(loc_fragment_parent).get("fragmentType") + ":" + loc_fragment_parent
                 self.add_edges(
                     "hasScript",
-                    tuple((loc_path, {"loc": loc_path, "parent": loc_fragment_parent})),
+                    tuple((loc_path, {"loc": loc_path, "fragmentType": operation_loc[1].get("fragmentType"), "parent": parent_node_id})),
                 )
 
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
@@ -739,7 +736,7 @@ class Cpp:
         )
         translation_units.update(containment_translation_units)
 
-        self.add_translation_units(translation_units)
+        # self.add_translation_units(translation_units)
 
         namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
         self.add_namespaces(namespaces_dict)

@@ -73,13 +73,6 @@ def parse_M3_declarations(m3, fragments_dict=None, fragments_type=None):
                     )
 
         else:
-            # for key in fragments_dict.keys():
-            #     if fragments_dict[key].get("loc") == declarations_fragment.get(
-            #         "loc"
-            #     ):
-            #         fragments_dict[key]["physicalLoc"] = get_fragment_declaration_location(
-            #             rel[1]
-            #         )
             key = declarations_fragment.get("loc")
             if key is not None and key in fragments_dict.keys():
                 fragments_dict[key]["physicalLoc"] = get_fragment_declaration_location(
@@ -87,14 +80,6 @@ def parse_M3_declarations(m3, fragments_dict=None, fragments_type=None):
                 )
                 counter_for_located_fragments = counter_for_located_fragments + 1
 
-            # for fragment in fragments_dict.items():
-            #     location = fragment[1].get("location")
-            #     if location is None:
-            #         unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[
-            #             1
-            #         ]
-            #     else:
-            #         files_containing_fragments_set.add(location["file"])
     if fragments_dict is not None:
         logging.debug(
             "Located %s fragments out of %s fragments of type %s.",
@@ -182,7 +167,7 @@ def parse_M3_macro_expansions(m3):
         macro_fragment = parse_M3_loc_statement(rel[1])
 
         current_macro = macros.setdefault(
-            macro_fragment["loc"], {"loc": macro_fragment["loc"], "fileExpansions": {}}
+            macro_fragment["loc"], {"loc": macro_fragment["loc"], "fragmentType": macro_fragment["fragmentType"], "fileExpansions": {}}
         )
 
         current_macro = update_macro_fragment(current_macro, macro_location)
@@ -220,7 +205,7 @@ def parse_M3_containment(m3):
             in constants.NAMESPACE_CHILD_FRAGMENT_TYPES
         ):
             namespace_fragment = update_fragment_contains(
-                namespace_fragment, contained_fragment["loc"]
+                namespace_fragment, contained_fragment
             )
             update_or_add_fragment(contained_fragment)
         return namespace_fragment
@@ -284,7 +269,7 @@ def parse_M3_containment(m3):
                     in constants.NESTED_STRUCTURES_FRAGMENT_TYPES
                 ):
                     structure_fragment = update_fragment_contains(
-                        structure_fragment, child_fragment["loc"]
+                        structure_fragment, child_fragment
                     )
 
                 relevant_dict[structure_fragment["loc"]] = structure_fragment
@@ -341,8 +326,8 @@ def parse_M3_callGraph(m3, operations):
                     if existing_invocation is None:
                         invocation = {}
                         invocation["id"] = invocation_id
-                        invocation["source"] = source.get("loc")
-                        invocation["target"] = target.get("loc")
+                        invocation["source"] = source
+                        invocation["target"] = target
                         invocation["weight"] = 1
 
                         invocations[invocation_id] = invocation
@@ -388,8 +373,8 @@ def parse_M3_callGraph(m3, operations):
                     if existing_invocation is None:
                         invocation = {}
                         invocation["id"] = invocation_id
-                        invocation["source"] = source.get("loc")
-                        invocation["target"] = target.get("loc")
+                        invocation["source"] = source
+                        invocation["target"] = target
                         invocation["weight"] = 1
 
                         invocations[invocation_id] = invocation
@@ -428,9 +413,9 @@ def parse_M3_extends(m3, fragments, fragments_type):
             if fragment[1].get("loc") == extending_fragment.get("loc"):
                 base_fragment = parse_M3_loc_statement(rel[1])
                 if fragment[1].get("extends") is None:
-                    fragment[1]["extends"] = [base_fragment["loc"]]
+                    fragment[1]["extends"] = [base_fragment]
                 else:
-                    fragment[1]["extends"].append(base_fragment["loc"])
+                    fragment[1]["extends"].append(base_fragment)
                 fragments[fragment[1]["loc"]] = fragment[1]
                 extension_counter = extension_counter + 1
 
@@ -537,14 +522,14 @@ def get_fragment_declaration_location(declaration_loc):
     return location
 
 
-def update_fragment_contains(fragment, contained_fragment_name):
+def update_fragment_contains(fragment, contained_fragment):
 
     if fragment.get("contains") is not None:
 
-        fragment["contains"].append(contained_fragment_name)
+        fragment["contains"].append(contained_fragment)
     else:
 
-        fragment["contains"] = [contained_fragment_name]
+        fragment["contains"] = [contained_fragment]
 
     return fragment
 
