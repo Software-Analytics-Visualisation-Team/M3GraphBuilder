@@ -3,6 +3,33 @@ from collections.abc import Iterable
 from typing import Optional, List, Dict, Union, Set, Tuple
 
 
+def create_node(
+    node_id: str,
+    label: str,
+    full_name: str,
+    simple_name: str,
+    color: str,
+    dep_profile_cat=None,
+    cohesion=None,
+) -> tuple:
+    return (node_id, label, full_name, simple_name, color, dep_profile_cat, cohesion)
+
+
+def create_edge(
+    edge_source: str, edge_target: str, edge_label: str, properties=None
+) -> tuple:
+    return (
+        f"{edge_source}-{edge_label}-{edge_target}",
+        edge_label,
+        edge_source,
+        edge_target,
+        "{}",
+        None,
+        None,
+        None,
+    )
+
+
 class Node:
     def __init__(self, _id, *labels, **properties):
         self.id = _id
