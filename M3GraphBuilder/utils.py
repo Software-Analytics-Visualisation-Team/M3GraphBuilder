@@ -3,6 +3,17 @@ import logging
 import configparser
 
 
+def get_and_validate_output_folder(config ,output_folder_arg, graph_folder_name):
+    """Validate the output folder taken from the provided arguments, or the configuration."""
+    output_folder = (
+        output_folder_arg
+        if output_folder_arg
+        else config["output"]["path"] + "/" + graph_folder_name + "/"
+    )
+    validate_dir(output_folder)
+    return output_folder
+
+
 def setup_logging(config, log_name):
     """Set up logging to write logs to a specific file path."""
 
@@ -12,7 +23,6 @@ def setup_logging(config, log_name):
 
     validate_dir(log_file_path)
 
-    # Set up the logging configuration
     logging.basicConfig(
         level=logging.INFO,  # Set the minimum log level
         format="%(asctime)s - %(levelname)s - %(message)s",  # Log message format
