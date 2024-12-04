@@ -31,3 +31,34 @@ def find_node_discrepencies(lpg_path):
         return missing_ids
     except Exception as e:
         return f"lpg_validator error: {str(e)}"
+    
+def remove_edges_with_missing_ids(lpg_path, output_path):
+    try:
+        with open(lpg_path, "r") as lpg:
+            # Parse the JSON data
+            parsed_data = json.load(lpg)
+
+            # Extract the elements dictionary, nodes, and edges
+            elements = parsed_data.get("elements", {})
+            nodes = elements.get("nodes", [])
+            edges = elements.get("edges", [])
+
+            # Filter out edges that have missing 'id' or missing 'source' or 'target'
+            edges_to_keep = [edge for edge in edges if edge.get("data", {}).get("id") is not None]
+            # Update the elements dictionary with the filtered edges
+            elements["edges"] = edges_to_keep
+
+            # Create a new parsed data dictionary with the updated edges
+            updated_data = {
+                "elements": elements
+            }
+
+            # Write the modified data to the output file
+            with open(output_path, "w") as out_file:
+                json.dump(updated_data, out_file, indent=4)
+
+            return f"File has been written to {output_path} without edges with missing IDs."
+    
+    except Exception as e:
+        return f"Error while processing the file: {str(e)}"
+

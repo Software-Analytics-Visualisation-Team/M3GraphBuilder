@@ -5,7 +5,7 @@ import logging
 #M3GB imports
 from M3GraphBuilder.converters import Cpp
 from M3GraphBuilder.graphlib import Arvisaninator
-from M3GraphBuilder.graphlib.validator import find_node_discrepencies
+from M3GraphBuilder.graphlib.validator import find_node_discrepencies, remove_edges_with_missing_ids
 from M3GraphBuilder.graphlib.merge_hierachy import merge_nodes_and_edges
 from M3GraphBuilder.utils import get_and_validate_output_folder
 
@@ -52,6 +52,8 @@ def create_graph(args, M3GB_config):
                     f"[1/1] Found {len(missing_node_ids)} edges referencing nonexistent nodes:"
                 )
                 logging.warning(missing_node_ids)
+                logging.warning(f"Removing invalid edges from {output_path}.lpg.json to, {output_path}_clean.lpg.json")
+                remove_edges_with_missing_ids(output_path, output_path + "_clean.lpg.json")
             else:
                 logging.info("[1/1] All nodes in edges accounted for.")
     except FileNotFoundError as e:
