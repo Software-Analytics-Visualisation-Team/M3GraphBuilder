@@ -53,14 +53,14 @@ class Cpp:
 
             case "specializes":
                 for base_fragment in content[1]["extends"]:
-                    edge_id = hash(content[0]) + hash(base_fragment)
+                    edge_id = hash(content[0]) + hash(base_fragment.get("loc"))
                     self.lpg["elements"]["edges"].append(
                         {
                             "data": {
                                 "id": edge_id,
-                                "source": base_fragment[1].get("fragmentType")
+                                "source": base_fragment.get("fragmentType")
                                 + ":"
-                                + base_fragment[1].get("loc"),
+                                + base_fragment.get("loc"),
                                 "properties": {"weight": 1},
                                 "target": content[1].get("fragmentType")
                                 + ":"
@@ -507,6 +507,26 @@ class Cpp:
 
         # return result
 
+    def add_deferred_classes(self, deferred_classes):
+        logging.info("Adding deferred classes")
+        # files = []
+
+        if self.verbose:
+            logging.info(
+                f"[VERBOSE] Updating declared locations for {len(deferred_classes)} deferred classes."
+            )
+
+        declarations_dict = m3_utils.parse_M3_declarations(
+            self.parsed, deferred_classes, constants.M3_CPP_DEFERRED_CLASS_TYPE
+        )
+        classes_updated_from_Declarations = declarations_dict.get("fragments")
+
+        for c in classes_updated_from_Declarations.items():
+            self.add_nodes("class", c)
+            self.add_edges("contains", c)
+
+        logging.info(f"Successfully added {len(deferred_classes)} deferredclasses to the graph.")
+
     def add_macros(self, macros):
         logging.info("Adding macros")
 
@@ -640,7 +660,7 @@ class Cpp:
                 # logging.debug("parent successfully recognized")
                 parent_fragment = self.structures.get(m[1]["parent"])
 
-                m[1]["parent"] = parent_fragment.get("loc")
+                m[1]["parent"] = parent_fragment.get("fragmentType") + ":" + parent_fragment.get("loc")
                 self.add_edges("hasScript", m)
 
             # self.add_edges("returnType", m)
@@ -685,7 +705,7 @@ class Cpp:
                 # logging.debug("parent successfully recognized")
                 parent_fragment = containers_dict.get(f[1]["parent"])
 
-                f[1]["parent"] = parent_fragment.get("loc")
+                f[1]["parent"] = parent_fragment.get("fragmentType") + ":" + parent_fragment.get("loc")
                 self.add_edges("hasScript", f)
 
             # self.add_edges("contains", f)
@@ -721,11 +741,10 @@ class Cpp:
                 operation_loc[1].get("loc")
             )
 
-            if (
-                loc_fragment_parent not in self.structures.keys()
+            if ( loc_fragment_parent and loc_fragment_parent not in self.structures.keys()
                 and loc_fragment_parent not in self.containers.keys()
             ):
-                logging.info("Missing fragment not in structures: %s", loc_path)
+                logging.info("Missing fragment parent %s not in structures: %s", loc_fragment_parent, loc_path)
             else:
                 self.add_nodes(
                     "function",
@@ -740,25 +759,26 @@ class Cpp:
                         )
                     ),
                 )
-
-                parent_node_id = (
-                    self.structures.get(loc_fragment_parent).get("fragmentType")
-                    + ":"
-                    + loc_fragment_parent
-                )
-                self.add_edges(
-                    "hasScript",
-                    tuple(
-                        (
-                            loc_path,
-                            {
-                                "loc": loc_path,
-                                "fragmentType": operation_loc[1].get("fragmentType"),
-                                "parent": parent_node_id,
-                            },
-                        )
-                    ),
-                )
+                if loc_fragment_parent:
+                    loc_fragment_parent = self.containers.get(loc_fragment_parent, self.structures.get(loc_fragment_parent))
+                    parent_node_id = (
+                        loc_fragment_parent.get("fragmentType")
+                        + ":"
+                        + loc_fragment_parent.get("loc")
+                    )
+                    self.add_edges(
+                        "hasScript",
+                        tuple(
+                            (
+                                loc_path,
+                                {
+                                    "loc": loc_path,
+                                    "fragmentType": operation_loc[1].get("fragmentType"),
+                                    "parent": parent_node_id,
+                                },
+                            )
+                        ),
+                    )
 
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
@@ -790,6 +810,7 @@ class Cpp:
             constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
         )
         self.add_template_types(template_types_dict)
+        self.structures.update(template_types_dict)
 
         specializations_dict = containment_dict.get(
             constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
@@ -806,6 +827,10 @@ class Cpp:
         classes_dict = containment_dict.get(constants.M3_CPP_CLASS_TYPE)
         self.add_classes(classes_dict)
         self.structures.update(classes_dict)
+
+        deferred_classes_dict = containment_dict.get(constants.M3_CPP_DEFERRED_CLASS_TYPE)
+        self.add_deferred_classes(deferred_classes_dict)
+        self.structures.update(deferred_classes_dict)
 
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 

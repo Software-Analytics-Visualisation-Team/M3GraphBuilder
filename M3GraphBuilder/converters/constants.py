@@ -8,6 +8,7 @@ M3_CPP_CLASS_SPECIALIZATION_TYPE = r"cpp+classSpecialization"
 M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE = r"cpp+classTemplatePartialSpec"
 M3_CPP_FUNCTION_TYPE = r"cpp+function"
 M3_CPP_FUNCTION_TEMPLATE_TYPE = r"cpp+functionTemplate"
+M3_DEFERRED_FUNCTION_TYPE = r"cpp+deferredFunction"
 M3_CPP_MACRO_TYPE = r"cpp+macro"
 M3_CPP_METHOD_TYPE = r"cpp+method"
 M3_CPP_PARAMETER_TYPE = r"cpp+parameter"
@@ -30,6 +31,7 @@ M3_PARAMETER_LOC_SCM = "cpp\\+parameter:///"
 M3_FILE_LOC_SCM = "\\|file:///"
 M3_FUNCTION_LOC_SCM = "cpp\\+function:///"
 M3_FUNCTION_TEMPLATE_LOC_SCM = "cpp\\+functionTemplate:///"
+M3_DEFERRED_FUNCTION_LOC_SCM = "cpp\\+deferredFunction:///"
 M3_VARIABLE_LOC_SCM = "cpp\\+variable:///"
 M3_FIELD_LOC_SCM = "cpp\\+field:///"
 M3_MACRO_LOC_SCM = "cpp\\+macro:///"
@@ -57,6 +59,14 @@ NESTED_STRUCTURES_FRAGMENT_TYPES = [
     M3_CPP_CLASS_SPECIALIZATION_TYPE,
     M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE,
     M3_CPP_CLASS_TEMPLATE_TYPE,
+]
+
+OPERATIONS_FRAGMENT_LOC_SCM = [
+    M3_FUNCTION_TEMPLATE_LOC_SCM,
+    M3_DEFERRED_FUNCTION_LOC_SCM,
+    M3_FUNCTION_TEMPLATE_LOC_SCM,
+    M3_METHOD_LOC_SCM,
+    M3_FUNCTION_LOC_SCM
 ]
 
 # Types of containers and structures that should be linked to a physical location
@@ -96,4 +106,5 @@ FRAGMENT_PARSERS = {
     M3_CPP_VARIABLE_TYPE: M3_VARIABLE_LOC_SCM,
     M3_CPP_PARAMETER_TYPE: M3_PARAMETER_LOC_SCM,
     M3_CPP_MACRO_TYPE: M3_MACRO_LOC_SCM,
+    M3_DEFERRED_FUNCTION_TYPE: M3_DEFERRED_FUNCTION_LOC_SCM
 }
