@@ -29,7 +29,7 @@ class Cpp:
 
         match kind:
             case "hasScript":
-                edge_id = hash(content[0])
+                edge_id = hash(content[0] + content[1].get("fragmentType") + ":" + content[1].get("loc"))
                 source = content[1].get("parent")
                 properties = {"weight": 1}
                 target = content[1].get("fragmentType") + ":" + content[1].get("loc")
@@ -53,7 +53,9 @@ class Cpp:
 
             case "specializes":
                 for base_fragment in content[1]["extends"]:
-                    edge_id = hash(content[0]) + hash(base_fragment.get("loc"))
+                    edge_id = hash(content[0]) + hash(base_fragment.get("fragmentType")
+                                + ":"
+                                + base_fragment.get("loc"))
                     self.lpg["elements"]["edges"].append(
                         {
                             "data": {
@@ -143,7 +145,7 @@ class Cpp:
 
                             for child_fragment in contained_fragments:
                                 edge_id = hash(content[0]) + hash(
-                                    child_fragment.get("loc")
+                                    child_fragment.get("fragmentType") + child_fragment.get("loc")
                                 )
 
                                 self.lpg["elements"]["edges"].append(
@@ -161,6 +163,7 @@ class Cpp:
                                         }
                                     }
                                 )
+                            edge_id = None
                     # Method relationships
                     elif (
                         content[1].get("fragmentType") is constants.M3_CPP_METHOD_TYPE
@@ -332,6 +335,7 @@ class Cpp:
                 | "template_type"
                 | "specialization"
                 | "partial_specialization"
+                | "deferred_class"
             ):
                 node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
@@ -522,7 +526,7 @@ class Cpp:
         classes_updated_from_Declarations = declarations_dict.get("fragments")
 
         for c in classes_updated_from_Declarations.items():
-            self.add_nodes("class", c)
+            self.add_nodes("deferred_class", c)
             self.add_edges("contains", c)
 
         logging.info(f"Successfully added {len(deferred_classes)} deferredclasses to the graph.")
@@ -782,10 +786,46 @@ class Cpp:
 
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
+    def handle_orphan_structures(self, contained_structures):
+        
+        counter = 0
+        handle_counter = 0
+
+        for structure in self.structures.items():
+            structure_key = structure[1].get("fragmentType") + ":" + structure[1].get("loc")
+            if contained_structures.get(structure_key) is None:
+                counter += 1
+                loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(structure[1].get("loc"))
+                if loc_fragment_parent in self.containers.keys() or loc_fragment_parent in self.structures.keys():
+                    parent = self.containers.get(loc_fragment_parent, self.structures.get(loc_fragment_parent))
+
+                    edge_id = hash(parent.get("loc")) + hash(
+                        structure_key
+                    )
+
+                    self.lpg["elements"]["edges"].append(
+                        {
+                            "data": {
+                                "id": edge_id,
+                                "source": parent.get("fragmentType")
+                                + ":"
+                                + parent.get("loc"),
+                                "properties": {"weight": 1},
+                                "target": structure[1].get("fragmentType")
+                                + ":"
+                                + structure[1].get("loc"),
+                                "labels": ["contains"],
+                            }
+                        }
+                    )
+                    handle_counter += 1
+        
+        print(f"Handled {handle_counter} out of {counter} orphaned structures")
+
     def export(self):
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
-        containment_dict = m3_utils.parse_M3_containment(self.parsed)
+        containment_dict, contained_structures = m3_utils.parse_M3_containment(self.parsed)
         macros_dict = m3_utils.parse_M3_macro_expansions(self.parsed)
 
         self.add_macros(macros_dict)
@@ -831,6 +871,8 @@ class Cpp:
         deferred_classes_dict = containment_dict.get(constants.M3_CPP_DEFERRED_CLASS_TYPE)
         self.add_deferred_classes(deferred_classes_dict)
         self.structures.update(deferred_classes_dict)
+
+        self.handle_orphan_structures(contained_structures)
 
         # files_for_classes = add_classes_dict.get("files_for_classes_set")
 
