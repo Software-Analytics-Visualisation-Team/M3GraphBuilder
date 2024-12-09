@@ -194,6 +194,7 @@ def parse_M3_containment(m3):
     partial_specializations_dict = {}
     translation_unit_dict = {}
     functions_dict = {}
+    contained_structures = {}
 
     containment_dicts = {
         constants.M3_CPP_NAMESPACE_TYPE: namespaces_dict,
@@ -231,6 +232,19 @@ def parse_M3_containment(m3):
         relevant_dict = containment_dicts[fragment_type]
         if fragment["loc"] not in relevant_dict:
             relevant_dict[fragment["loc"]] = fragment
+    
+    def update_fragment_contains(fragment, contained_fragment):
+
+        contained_structures[child_fragment["fragmentType"] + ":" + child_fragment["loc"]] = child_fragment
+        
+        if fragment.get("contains") is not None:
+            if contained_fragment["fragmentType"] + ":" + contained_fragment["loc"] not in [child["fragmentType"] + ":" + child["loc"] for child in fragment["contains"]]:
+                fragment["contains"].append(contained_fragment)
+        else:
+
+            fragment["contains"] = [contained_fragment]
+
+        return fragment
 
     for rel in containment_data:
         parent_fragment = parse_M3_loc_statement(rel[0])
@@ -281,9 +295,10 @@ def parse_M3_containment(m3):
                         structure_fragment, child_fragment
                     )
 
-                relevant_dict[structure_fragment["loc"]] = structure_fragment
+                relevant_dict[structure_fragment["fragmentType"] + ":" + structure_fragment["loc"]] = structure_fragment
 
-    return containment_dicts
+
+    return containment_dicts, contained_structures
 
 
 def parse_M3_callGraph(m3, operations):
@@ -369,17 +384,25 @@ def parse_M3_extends(m3, fragments, fragments_type):
 
     extends_data = m3["extends"]
 
-    for fragment in fragments.items():
+    # Create a copy of the dictionary items to iterate over
+    fragments_copy = list(fragments.items())
+
+    for fragment in fragments_copy:  # Iterate over the copied list of items
         for rel in extends_data:
             extending_fragment = parse_M3_loc_statement(rel[0])
             if fragment[1].get("loc") == extending_fragment.get("loc"):
                 base_fragment = parse_M3_loc_statement(rel[1])
-                if fragment[1].get("extends") is None:
-                    fragment[1]["extends"] = [base_fragment]
-                else:
-                    fragment[1]["extends"].append(base_fragment)
+
+                if base_fragment.get("fragmentType") != "unsupported":
+                    if fragment[1].get("extends") is None:
+                        fragment[1]["extends"] = [base_fragment]
+                    else:
+                        fragment[1]["extends"].append(base_fragment)
+                
+                # Modify the original dictionary outside of the loop
                 fragments[fragment[1]["loc"]] = fragment[1]
-                extension_counter = extension_counter + 1
+                extension_counter += 1
+
 
     logging.debug("Added %s extensions", extension_counter)
 
@@ -484,18 +507,6 @@ def get_fragment_declaration_location(declaration_loc):
     location["position"] = "(" + location["position"]
 
     return location
-
-
-def update_fragment_contains(fragment, contained_fragment):
-
-    if fragment.get("contains") is not None:
-
-        fragment["contains"].append(contained_fragment)
-    else:
-
-        fragment["contains"] = [contained_fragment]
-
-    return fragment
 
 
 def get_fragment_type_key(fragment_field):
