@@ -55,7 +55,7 @@ def remove_edges_with_missing_ids(lpg_path, output_path):
 
             # Write the modified data to the output file
             with open(output_path, "w") as out_file:
-                json.dump(updated_data, out_file, indent=4)
+                json.dump(updated_data, out_file)
 
             return f"File has been written to {output_path} without edges with missing IDs."
     
