@@ -129,7 +129,7 @@ class Cpp:
                 )
             case "contains":
                 try:
-                    # Namespace and translation unit relationships
+                    
                     if content[1].get("fragmentType") in constants.CONTAINER_PARENTS:
                         contained_fragments = content[1].get("contains")
                         if contained_fragments is not None:
@@ -150,7 +150,7 @@ class Cpp:
                                     }
                                 )
                             edge_id = None
-                    # Method relationships
+                    
                     elif (
                         content[1].get("fragmentType") is constants.M3_CPP_METHOD_TYPE
                         and content[1].get("location") is not None
@@ -192,15 +192,15 @@ class Cpp:
                                     f"Failed to add a contains edge for {content}"
                                 )
                                 return
-                    # Classes relationships
-                    # elif content[1].get("contains") is not None:
-                    #     edge_id = hash(content[0]) + hash(
-                    #         content[1]["location"]["file"]
-                    #     )
-                    #     source = content[1]["location"].get("file")
-                    #     properties = {"weight": 1}
-                    #     target = content[0]
-                    #     labels = ["contains"]
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                 except Exception as e:
                     logging.info("Problem adding 'contains' relationship for ", content)
 
@@ -463,16 +463,16 @@ class Cpp:
 
     def add_classes(self, classes):
         logging.info("Adding classes")
-        # files = []
+        
 
         if self.verbose:
             logging.info(
                 f"[VERBOSE] Updating declared locations for {len(classes)} classes."
             )
 
-        # get_fragment_files_dict = self.get_fragment_files(classes)
-        # updated_classes = get_fragment_files_dict.get("fragments")
-        # files = get_fragment_files_dict.get("files")
+        
+        
+        
 
         declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, classes, constants.M3_CPP_CLASS_TYPE
@@ -481,7 +481,7 @@ class Cpp:
 
         updated_classes_with_extensions = m3_utils.parse_M3_extends(
             self.parsed, classes_updated_from_Declarations, constants.M3_CPP_CLASS_TYPE
-        )  # get class extentions
+        )  
         for c in updated_classes_with_extensions.items():
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
@@ -490,16 +490,16 @@ class Cpp:
 
         logging.info(f"Successfully added {len(classes)} classes to the graph.")
 
-        # result = {
-        #     "simplified_class_dict": simplified_class,
-        #     "files_for_classes_set": files,
-        # }
+        
+        
+        
+        
 
-        # return result
+        
 
     def add_deferred_classes(self, deferred_classes):
         logging.info("Adding deferred classes")
-        # files = []
+        
 
         if self.verbose:
             logging.info(
@@ -634,9 +634,9 @@ class Cpp:
                 f"[VERBOSE] Updating declared locations for {len(methods)} methods."
             )
 
-        # get_fragment_files_dict = self.get_fragment_files(methods)
-        # updated_methods = get_fragment_files_dict.get("fragments")
-        # files_for_methods = get_fragment_files_dict.get("files")
+        
+        
+        
 
         declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, methods, constants.M3_CPP_METHOD_TYPE
@@ -645,31 +645,31 @@ class Cpp:
 
         for m in methods_updated_from_Declarations.items():
             self.add_nodes("method", m)
-            # logging.debug("method parent %s", m[1].get("parent"))
+            
             if m[1].get("parent") in self.structures.keys():
-                # logging.debug("parent successfully recognized")
+                
                 parent_fragment = self.structures.get(m[1]["parent"])
 
                 m[1]["parent"] = parent_fragment.get("fullLoc")
                 self.add_edges("hasScript", m)
 
-            # self.add_edges("returnType", m)
-            # self.add_edges("contains", m)
+            
+            
 
             method_parameters = parameters.get(m[1].get("functionLoc"))
             if method_parameters is not None:
-                # logging.info(f"adding params for {m[0]}")
+                
                 for param in method_parameters:
                     self.add_nodes("parameter", param)
                     self.add_edges("hasParameter", param)
-            # else:
-            #     logging.info(f"method {m} with empty parameters")
+            
+            
 
         logging.info(f"Successfully added {len(methods)} methods to the graph.")
 
-        # result = {"files_for_methods_set": files_for_methods}
+        
 
-        # return result
+        
 
     def add_functions(self, functions, containers_dict, parameters):
         logging.info("Adding functions")
@@ -679,9 +679,9 @@ class Cpp:
                 f"[VERBOSE] Updating declared locations for {len(functions)} functions."
             )
 
-        # get_fragment_files_dict = self.get_fragment_files(functions)
-        # updated_functions = get_fragment_files_dict.get("fragments")
-        # files_for_functions = get_fragment_files_dict.get("files")
+        
+        
+        
 
         declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, functions, constants.M3_CPP_FUNCTION_TYPE
@@ -692,13 +692,13 @@ class Cpp:
             self.add_nodes("function", f)
 
             if f[1].get("parent") in containers_dict.keys():
-                # logging.debug("parent successfully recognized")
+                
                 parent_fragment = containers_dict.get(f[1]["parent"])
 
                 f[1]["parent"] = parent_fragment.get("fullLoc")
                 self.add_edges("hasScript", f)
 
-            # self.add_edges("contains", f)
+            
             function_parameters = parameters.get(f[1].get("functionLoc"))
 
             if function_parameters is not None:
@@ -710,9 +710,9 @@ class Cpp:
 
         logging.info(f"Successfully added {len(functions)} functions to the graph.")
 
-        # result = {"files_for_functions_set": files_for_functions}
+        
 
-        # return result
+        
 
     def add_invocations(self, methods, functions):
         logging.info("Adding invocations")
@@ -721,7 +721,7 @@ class Cpp:
         self.operations.update(functions)
         callGraph_data = m3_utils.parse_M3_callGraph(self.parsed, self.operations)
         invocations = callGraph_data.get("invocations")
-        # overrides = callGraph_data.get("overrides")
+        
 
         for invocation in invocations.items():
             self.add_edges("invokes", invocation)
@@ -822,8 +822,6 @@ class Cpp:
         )
         translation_units.update(containment_translation_units)
 
-        # self.add_translation_units(translation_units)
-
         namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
         self.add_namespaces(namespaces_dict)
         self.containers = deepcopy(namespaces_dict)
@@ -860,13 +858,10 @@ class Cpp:
 
         self.handle_orphan_structures(contained_structures)
 
-        # files_for_classes = add_classes_dict.get("files_for_classes_set")
-
         add_methods_dict = self.add_methods(
             declaredType_dicts.get("methods"),
             declarations_dict.get("parameters"),
         )
-        # files_for_methods = add_methods_dict.get("files_for_methods_set")
 
         functions_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TYPE)
 
@@ -877,18 +872,10 @@ class Cpp:
             namespaces_dict,
             declarations_dict.get("parameters"),
         )
-        # files_for_functions = add_functions_dict.get("files_for_functions_set")
 
         self.add_invocations(
             declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
         )
-
-        # files_set = m3_utils.parse_M3_provides(self.parsed)
-        # files_set.update(files_for_classes)
-        # files_set.update(files_for_methods)
-        # files_set.update(files_for_functions)
-
-        # self.add_files(files_set)
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))
