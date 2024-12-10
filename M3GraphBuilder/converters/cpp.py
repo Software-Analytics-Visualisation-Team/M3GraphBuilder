@@ -24,133 +24,52 @@ class Cpp:
     def add_edges(self, kind, content):
         edge_id = {}
         source = {}
-        properties = {}
+        properties = {"weight": 1}
         target = {}
-        labels = []
+        labels = [kind]
 
         match kind:
             case "hasScript":
                 edge_id = hash(content[0] + content[1].get("fullLoc"))
                 source = content[1].get("parent")
-                properties = {"weight": 1}
                 target = content[1].get("fullLoc")
-                labels = [kind]
-
-            case "hasParameter":
-                edge_id = hash(content[1].get("simpleName"))
-                source = content[1].get("function")
-                properties = {"weight": 1}
-                target = (
-                    content[1].get("functionLoc") + "." + content[1].get("simpleName")
-                )
-                labels = [kind]
-
-            case "returnType":
-                edge_id = hash(content[0]) + hash(content[1]["returnType"])
-                source = content[0]
-                properties = {"weight": 1}
-                target = content[1]["returnType"]
-                labels = [kind]
 
             case "specializes":
                 for base_fragment in content[1]["extends"]:
                     edge_id = hash(content[0]) + hash(base_fragment.get("fullLoc"))
-                    self.lpg["elements"]["edges"].append(
-                        {
-                            "data": {
-                                "id": edge_id,
-                                "source": base_fragment.get("fullLoc"),
-                                "properties": {"weight": 1},
-                                "target": content[1].get("fullLoc"),
-                                "labels": [kind],
-                            }
-                        }
-                    )
-
-            case "hasVariable":
-                for variable in content[1]["variables"]:
-                    if variable is not None and variable != "":
-                        edge_id = hash(variable["name"]) + hash(content[0])
-                        self.lpg["elements"]["edges"].append(
-                            {
-                                "data": {
-                                    "id": edge_id,
-                                    "source": content[0],
-                                    "properties": {"weight": 1},
-                                    "target": content[0] + "." + variable["name"],
-                                    "labels": [kind],
-                                }
-                            }
-                        )
-                        if len(content[1]["location"]) != 0 and content[0] is not None:
-                            edge_id = (
-                                hash(variable["name"])
-                                + hash(content[0])
-                                + hash(content[1]["location"].get("file"))
-                            )
-                            self.lpg["elements"]["edges"].append(
-                                {
-                                    "data": {
-                                        "id": edge_id,
-                                        "source": content[1]["location"].get("file"),
-                                        "properties": {"weight": 1},
-                                        "target": content[0] + "." + variable["name"],
-                                        "labels": ["contains"],
-                                    }
-                                }
-                            )
+                    source = base_fragment.get("fullLoc")
+                    target = content[1].get("fullLoc")
 
             case "invokes":
                 edge_id = hash(content[1].get("id"))
-                self.lpg["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": edge_id,
-                            "source": content[1]["source"].get("fullLoc"),
-                            "properties": {"weight": content[1]["weight"]},
-                            "target": content[1]["target"].get("fullLoc"),
-                            "labels": [kind],
-                        }
-                    }
-                )
+                source = content[1]["source"].get("fullLoc")
+                target = content[1]["target"].get("fullLoc")
+                properties = {"weight": content[1]["weight"]}
 
             case "contains-definition":
                 edge_id = hash(content["translationUnit"] + "" + content["definition"])
-                self.lpg["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": edge_id,
-                            "source": content["translationUnit"],
-                            "properties": {"weight": 1},
-                            "target": content["definition"],
-                            "labels": ["specializes"],
-                        }
-                    }
-                )
+                source = content["translationUnit"]
+                target = content["definition"]
+                labels = ["specializes"]
+
             case "contains":
                 try:
-                    
                     if content[1].get("fragmentType") in constants.CONTAINER_PARENTS:
                         contained_fragments = content[1].get("contains")
                         if contained_fragments is not None:
 
                             for child_fragment in contained_fragments:
                                 edge_id = hash(content[0]) + hash(
-                                    child_fragment.get("fullLoc"))
+                                    child_fragment.get("fullLoc")
+                                )
+                                source = content[1].get("fullLoc")
+                                target = child_fragment.get("fullLoc")
 
-                                self.lpg["elements"]["edges"].append(
-                                    {
-                                        "data": {
-                                            "id": edge_id,
-                                            "source": content[1].get("fullLoc"),
-                                            "properties": {"weight": 1},
-                                            "target": child_fragment.get("fullLoc"),
-                                            "labels": [kind],
-                                        }
-                                    }
+                                self.append_edge(
+                                    edge_id, source, properties, target, labels
                                 )
                             edge_id = None
-                    
+
                     elif (
                         content[1].get("fragmentType") is constants.M3_CPP_METHOD_TYPE
                         and content[1].get("location") is not None
@@ -162,9 +81,7 @@ class Cpp:
                                 + hash(content[1]["location"].get("file"))
                             )
                             source = content[1]["location"].get("file")
-                            properties = {"weight": 1}
                             target = content[0]
-                            labels = ["contains"]
                         except:
                             logging.info(
                                 f"Failed adding contains relationship between {source} and {target}"
@@ -184,42 +101,15 @@ class Cpp:
                                     + hash(source["data"]["source"])
                                 )
                                 source = source["data"]["source"]
-                                properties = {"weight": 1}
                                 target = content[0]
-                                labels = ["contains"]
                             else:
                                 logging.info(
                                     f"Failed to add a contains edge for {content}"
                                 )
                                 return
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
+
                 except Exception as e:
                     logging.info("Problem adding 'contains' relationship for ", content)
-
-            case "type":
-                content = list(zip(content.keys(), content.values()))[0]
-                id = hash(content[0]) - hash(content[1]["name"])
-                if len(content[1]["type"]) != 0:
-
-                    self.lpg["elements"]["edges"].append(
-                        {
-                            "data": {
-                                "id": id,
-                                "source": content[0] + "." + content[1]["name"],
-                                "properties": {"weight": 1},
-                                "target": content[1]["type"],
-                                "labels": [kind],
-                            }
-                        }
-                    )
 
         if edge_id and source and properties and target and labels:
             self.append_edge(edge_id, source, properties, target, labels)
@@ -291,21 +181,6 @@ class Cpp:
                 }
                 labels = ["Operation"]
 
-            case "parameter":
-                node_id = (
-                    content[1].get("fragmentType")
-                    + ":"
-                    + content[1].get("functionLoc")
-                    + "."
-                    + content[1].get("simpleName")
-                )
-                properties = {
-                    "simpleName": content[1].get("simpleName"),
-                    "kind": kind,
-                    "description": location,
-                }
-                labels = ["Variable"]
-
             case "method":
                 node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
                 properties = {
@@ -339,39 +214,6 @@ class Cpp:
                     "description": location,
                 }
                 labels = ["Container"]
-
-            case "Primitive":
-                self.lpg["elements"]["nodes"].append(
-                    {
-                        "data": {
-                            "id": content,
-                            "properties": {
-                                "simpleName": content,
-                                "kind": kind,
-                                "description": location,
-                            },
-                            "labels": [kind],
-                        }
-                    }
-                )
-
-            case "variable":
-                for variable in content[1]["variables"]:
-                    if variable is not None and variable != "":
-                        self.lpg["elements"]["nodes"].append(
-                            {
-                                "data": {
-                                    "id": content[0] + "." + variable["name"],
-                                    "properties": {
-                                        "simpleName": variable["name"],
-                                        "kind": kind,
-                                    },
-                                    "labels": ["Variable"],
-                                }
-                            }
-                        )
-                        if variable["type"] is not None:
-                            self.add_edges("type", {content[0]: variable})
 
         self.append_node(node_id, properties, labels)
 
@@ -463,16 +305,11 @@ class Cpp:
 
     def add_classes(self, classes):
         logging.info("Adding classes")
-        
 
         if self.verbose:
             logging.info(
                 f"[VERBOSE] Updating declared locations for {len(classes)} classes."
             )
-
-        
-        
-        
 
         declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, classes, constants.M3_CPP_CLASS_TYPE
@@ -481,7 +318,7 @@ class Cpp:
 
         updated_classes_with_extensions = m3_utils.parse_M3_extends(
             self.parsed, classes_updated_from_Declarations, constants.M3_CPP_CLASS_TYPE
-        )  
+        )
         for c in updated_classes_with_extensions.items():
             self.add_nodes("class", c)
             if c[1].get("extends") is not None:
@@ -490,16 +327,8 @@ class Cpp:
 
         logging.info(f"Successfully added {len(classes)} classes to the graph.")
 
-        
-        
-        
-        
-
-        
-
     def add_deferred_classes(self, deferred_classes):
         logging.info("Adding deferred classes")
-        
 
         if self.verbose:
             logging.info(
@@ -515,7 +344,9 @@ class Cpp:
             self.add_nodes("deferred_class", c)
             self.add_edges("contains", c)
 
-        logging.info(f"Successfully added {len(deferred_classes)} deferredclasses to the graph.")
+        logging.info(
+            f"Successfully added {len(deferred_classes)} deferredclasses to the graph."
+        )
 
     def add_macros(self, macros):
         logging.info("Adding macros")
@@ -634,10 +465,6 @@ class Cpp:
                 f"[VERBOSE] Updating declared locations for {len(methods)} methods."
             )
 
-        
-        
-        
-
         declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, methods, constants.M3_CPP_METHOD_TYPE
         )
@@ -645,31 +472,22 @@ class Cpp:
 
         for m in methods_updated_from_Declarations.items():
             self.add_nodes("method", m)
-            
+
             if m[1].get("parent") in self.structures.keys():
-                
+
                 parent_fragment = self.structures.get(m[1]["parent"])
 
                 m[1]["parent"] = parent_fragment.get("fullLoc")
                 self.add_edges("hasScript", m)
 
-            
-            
-
             method_parameters = parameters.get(m[1].get("functionLoc"))
             if method_parameters is not None:
-                
+
                 for param in method_parameters:
                     self.add_nodes("parameter", param)
                     self.add_edges("hasParameter", param)
-            
-            
 
         logging.info(f"Successfully added {len(methods)} methods to the graph.")
-
-        
-
-        
 
     def add_functions(self, functions, containers_dict, parameters):
         logging.info("Adding functions")
@@ -678,10 +496,6 @@ class Cpp:
             logging.info(
                 f"[VERBOSE] Updating declared locations for {len(functions)} functions."
             )
-
-        
-        
-        
 
         declarations_dict = m3_utils.parse_M3_declarations(
             self.parsed, functions, constants.M3_CPP_FUNCTION_TYPE
@@ -692,13 +506,12 @@ class Cpp:
             self.add_nodes("function", f)
 
             if f[1].get("parent") in containers_dict.keys():
-                
+
                 parent_fragment = containers_dict.get(f[1]["parent"])
 
                 f[1]["parent"] = parent_fragment.get("fullLoc")
                 self.add_edges("hasScript", f)
 
-            
             function_parameters = parameters.get(f[1].get("functionLoc"))
 
             if function_parameters is not None:
@@ -710,10 +523,6 @@ class Cpp:
 
         logging.info(f"Successfully added {len(functions)} functions to the graph.")
 
-        
-
-        
-
     def add_invocations(self, methods, functions):
         logging.info("Adding invocations")
 
@@ -721,7 +530,6 @@ class Cpp:
         self.operations.update(functions)
         callGraph_data = m3_utils.parse_M3_callGraph(self.parsed, self.operations)
         invocations = callGraph_data.get("invocations")
-        
 
         for invocation in invocations.items():
             self.add_edges("invokes", invocation)
@@ -733,8 +541,15 @@ class Cpp:
                 operation_loc[1].get("loc")
             )
 
-            if ( loc_fragment_parent and loc_fragment_parent not in self.structure_alieases.keys()):
-                logging.info("Missing fragment parent %s not in structures: %s", loc_fragment_parent, loc_path)
+            if (
+                loc_fragment_parent
+                and loc_fragment_parent not in self.structure_alieases.keys()
+            ):
+                logging.info(
+                    "Missing fragment parent %s not in structures: %s",
+                    loc_fragment_parent,
+                    loc_path,
+                )
             else:
                 self.add_nodes(
                     "function",
@@ -750,14 +565,16 @@ class Cpp:
                     ),
                 )
                 if loc_fragment_parent:
-                    fragment_parents = self.structure_alieases.get(loc_fragment_parent).get("structures")
+                    fragment_parents = self.structure_alieases.get(
+                        loc_fragment_parent
+                    ).get("structures")
 
                     for parent in fragment_parents:
-                        loc_fragment_parent = self.containers.get(parent, self.structures.get(parent))
+                        loc_fragment_parent = self.containers.get(
+                            parent, self.structures.get(parent)
+                        )
                         if loc_fragment_parent:
-                            parent_node_id = (
-                                loc_fragment_parent.get("fullLoc")
-                            )
+                            parent_node_id = loc_fragment_parent.get("fullLoc")
                             self.add_edges(
                                 "hasScript",
                                 tuple(
@@ -765,9 +582,15 @@ class Cpp:
                                         loc_path,
                                         {
                                             "loc": loc_path,
-                                            "fragmentType": operation_loc[1].get("fragmentType"),
+                                            "fragmentType": operation_loc[1].get(
+                                                "fragmentType"
+                                            ),
                                             "parent": parent_node_id,
-                                            "fullLoc": operation_loc[1].get("fragmentType") + ":" + loc_path
+                                            "fullLoc": operation_loc[1].get(
+                                                "fragmentType"
+                                            )
+                                            + ":"
+                                            + loc_path,
                                         },
                                     )
                                 ),
@@ -776,7 +599,7 @@ class Cpp:
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
     def handle_orphan_structures(self, contained_structures):
-        
+
         counter = 0
         handle_counter = 0
 
@@ -784,13 +607,18 @@ class Cpp:
             structure_key = structure[1].get("fullLoc")
             if contained_structures.get(structure_key) is None:
                 counter += 1
-                loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(structure[1].get("loc"))
-                if loc_fragment_parent in self.containers.keys() or loc_fragment_parent in self.structures.keys():
-                    parent = self.containers.get(loc_fragment_parent, self.structures.get(loc_fragment_parent))
-
-                    edge_id = hash(parent.get("loc")) + hash(
-                        structure_key
+                loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(
+                    structure[1].get("loc")
+                )
+                if (
+                    loc_fragment_parent in self.containers.keys()
+                    or loc_fragment_parent in self.structures.keys()
+                ):
+                    parent = self.containers.get(
+                        loc_fragment_parent, self.structures.get(loc_fragment_parent)
                     )
+
+                    edge_id = hash(parent.get("loc")) + hash(structure_key)
 
                     self.lpg["elements"]["edges"].append(
                         {
@@ -804,13 +632,15 @@ class Cpp:
                         }
                     )
                     handle_counter += 1
-        
+
         print(f"Handled {handle_counter} out of {counter} orphaned structures")
 
     def export(self):
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
-        containment_dict, contained_structures = m3_utils.parse_M3_containment(self.parsed)
+        containment_dict, contained_structures = m3_utils.parse_M3_containment(
+            self.parsed
+        )
         self.structure_alieases = deepcopy(containment_dict.get("structure_aliases"))
         macros_dict = m3_utils.parse_M3_macro_expansions(self.parsed)
 
@@ -852,7 +682,9 @@ class Cpp:
         self.add_classes(classes_dict)
         self.structures.update(classes_dict)
 
-        deferred_classes_dict = containment_dict.get(constants.M3_CPP_DEFERRED_CLASS_TYPE)
+        deferred_classes_dict = containment_dict.get(
+            constants.M3_CPP_DEFERRED_CLASS_TYPE
+        )
         self.add_deferred_classes(deferred_classes_dict)
         self.structures.update(deferred_classes_dict)
 
