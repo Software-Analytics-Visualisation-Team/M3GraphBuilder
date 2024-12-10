@@ -172,6 +172,7 @@ def parse_M3_macro_expansions(m3):
             {
                 "loc": macro_fragment["loc"],
                 "fragmentType": macro_fragment["fragmentType"],
+                "fullLoc": macro_fragment["fragmentType"] + macro_fragment["loc"],
                 "fileExpansions": {},
             },
         )
@@ -195,6 +196,7 @@ def parse_M3_containment(m3):
     translation_unit_dict = {}
     functions_dict = {}
     contained_structures = {}
+    structure_aliases_dict = {}
 
     containment_dicts = {
         constants.M3_CPP_NAMESPACE_TYPE: namespaces_dict,
@@ -205,7 +207,8 @@ def parse_M3_containment(m3):
         constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE: partial_specializations_dict,
         constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
         constants.M3_CPP_FUNCTION_TYPE: functions_dict,
-        constants.M3_CPP_DEFERRED_CLASS_TYPE: deferred_classes_dict
+        constants.M3_CPP_DEFERRED_CLASS_TYPE: deferred_classes_dict,
+        "structure_aliases": structure_aliases_dict
     }
 
     def update_namespace_fragment(namespace_fragment, contained_fragment):
@@ -230,21 +233,31 @@ def parse_M3_containment(m3):
     def update_or_add_fragment(fragment):
         fragment_type = fragment["fragmentType"]
         relevant_dict = containment_dicts[fragment_type]
-        if fragment["loc"] not in relevant_dict:
-            relevant_dict[fragment["loc"]] = fragment
+        if fragment["fullLoc"] not in relevant_dict:
+            relevant_dict[fragment["fullLoc"]] = fragment
     
     def update_fragment_contains(fragment, contained_fragment):
 
-        contained_structures[child_fragment["fragmentType"] + ":" + child_fragment["loc"]] = child_fragment
+        contained_structures[child_fragment["fullLoc"]] = child_fragment
         
         if fragment.get("contains") is not None:
-            if contained_fragment["fragmentType"] + ":" + contained_fragment["loc"] not in [child["fragmentType"] + ":" + child["loc"] for child in fragment["contains"]]:
+            if contained_fragment["fullLoc"] not in [child["fullLoc"] for child in fragment["contains"]]:
                 fragment["contains"].append(contained_fragment)
         else:
 
             fragment["contains"] = [contained_fragment]
-
+        
         return fragment
+        
+    def update_structure_alias(fragment):
+        alias = structure_aliases_dict.get(fragment["loc"])
+        if alias is not None:
+            if fragment["fullLoc"] not in alias.get("structures"):
+                alias["structures"].append(fragment["fullLoc"])
+
+            structure_aliases_dict[fragment["loc"]] = alias
+        else:
+            structure_aliases_dict[fragment["loc"]] = {"structures": [fragment["fullLoc"]]}        
 
     for rel in containment_data:
         parent_fragment = parse_M3_loc_statement(rel[0])
@@ -252,26 +265,30 @@ def parse_M3_containment(m3):
 
         match parent_fragment["fragmentType"]:
             case constants.M3_CPP_NAMESPACE_TYPE:
-                namespace_fragment = containment_dicts[
-                    constants.M3_CPP_NAMESPACE_TYPE
-                ].get(parent_fragment["loc"], parent_fragment)
+                update_structure_alias(parent_fragment)
+
+                namespace_fragment = containment_dicts[parent_fragment["fragmentType"]].get(parent_fragment["fullLoc"])
+                if namespace_fragment is None:
+                    namespace_fragment = parent_fragment
+
                 namespace_fragment = update_namespace_fragment(
                     namespace_fragment, child_fragment
                 )
+
                 containment_dicts[constants.M3_CPP_NAMESPACE_TYPE][
-                    parent_fragment["loc"]
+                    parent_fragment["fullLoc"]
                 ] = namespace_fragment
 
             case constants.M3_CPP_TRANSLATION_UNIT_TYPE:
                 translation_unit_fragment = containment_dicts[
                     constants.M3_CPP_TRANSLATION_UNIT_TYPE
-                ].get(parent_fragment["loc"], parent_fragment)
+                ].get(parent_fragment["fullLoc"], parent_fragment)
                 translation_unit_fragment.setdefault("definitions", {})
                 translation_unit_fragment = update_translation_unit_fragment(
                     translation_unit_fragment, child_fragment
                 )
                 containment_dicts[constants.M3_CPP_TRANSLATION_UNIT_TYPE][
-                    parent_fragment["loc"]
+                    parent_fragment["fullLoc"]
                 ] = translation_unit_fragment
 
             case (
@@ -282,10 +299,13 @@ def parse_M3_containment(m3):
                 | constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
                 | constants.M3_CPP_DEFERRED_CLASS_TYPE
             ):
+                update_structure_alias(parent_fragment)
+
                 relevant_dict = containment_dicts[parent_fragment["fragmentType"]]
-                structure_fragment = relevant_dict.get(
-                    parent_fragment["loc"], parent_fragment
-                )
+                structure_fragment = relevant_dict.get(parent_fragment["fullLoc"])
+
+                if structure_fragment is None:
+                    structure_fragment = parent_fragment
 
                 if (
                     child_fragment["fragmentType"]
@@ -295,7 +315,7 @@ def parse_M3_containment(m3):
                         structure_fragment, child_fragment
                     )
 
-                relevant_dict[structure_fragment["fragmentType"] + ":" + structure_fragment["loc"]] = structure_fragment
+                relevant_dict[structure_fragment["fullLoc"]] = structure_fragment
 
 
     return containment_dicts, contained_structures
@@ -344,7 +364,7 @@ def parse_M3_callGraph(m3, operations):
                             invocation["target"] = target
                             invocation["weight"] = 1
 
-                            invocations[invocation_id] = invocation
+                            edges[invocation_id] = invocation
                         else:
                             logging.debug("updating weight of existing invocation")
                             existing_invocation["weight"] += 1
@@ -356,16 +376,15 @@ def parse_M3_callGraph(m3, operations):
         return edges
 
     invocations = process_invocation_relations(callGraph_data, invocations)
-    print(f"length of invocation list after callGraph:{len(invocations)}")
+    logging.info(f"length of invocation list after callGraph:{len(invocations)}")
     invocations = process_invocation_relations(methodInvocation_data, invocations)
-    print(f"length of invocation list after methodInvocations:{len(invocations)}")
+    logging.info(f"length of invocation list after methodInvocations:{len(invocations)}")
     overrides = process_invocation_relations(methodOverrides_data, overrides, inverted_relation=True)
-    print(f"length of overrides list:{len(overrides)}")
-
+    logging.info(f"length of overrides list:{len(overrides)}")
     if len(unknown_operations) > 0:
-        logging.debug(
+        logging.info(
             "[VERBOSE] Found %s unknown operations when parsing callGraph",
-            len(unknown_operations),
+            len(unknown_operations.keys()),
         )
 
     result = {
@@ -390,7 +409,7 @@ def parse_M3_extends(m3, fragments, fragments_type):
     for fragment in fragments_copy:  # Iterate over the copied list of items
         for rel in extends_data:
             extending_fragment = parse_M3_loc_statement(rel[0])
-            if fragment[1].get("loc") == extending_fragment.get("loc"):
+            if fragment[1].get("fullLoc") == extending_fragment.get("fullLoc"):
                 base_fragment = parse_M3_loc_statement(rel[1])
 
                 if base_fragment.get("fragmentType") != "unsupported":
@@ -400,7 +419,7 @@ def parse_M3_extends(m3, fragments, fragments_type):
                         fragment[1]["extends"].append(base_fragment)
                 
                 # Modify the original dictionary outside of the loop
-                fragments[fragment[1]["loc"]] = fragment[1]
+                fragments[fragment[1]["fullLoc"]] = fragment[1]
                 extension_counter += 1
 
 
@@ -421,6 +440,7 @@ def parse_M3_loc_statement(loc_statement: str) -> Dict[str, Any]:
     def parse_and_set_fragment(fragment_type, schema):
         loc_path, fragment_parent, simple_name = parse_rascal_loc(loc_statement, schema)
         fragment["loc"] = loc_path
+        fragment["fullLoc"] = fragment_type + ":" + loc_path
         fragment["fragmentType"] = fragment_type
         fragment["simpleName"] = simple_name
 
@@ -428,14 +448,15 @@ def parse_M3_loc_statement(loc_statement: str) -> Dict[str, Any]:
             constants.M3_CPP_FUNCTION_TYPE,
             constants.M3_CPP_METHOD_TYPE,
             constants.M3_CPP_FUNCTION_TEMPLATE_TYPE,
-            constants.M3_DEFERRED_FUNCTION_TYPE
+            constants.M3_CPP_DEFERRED_FUNCTION_TYPE
         }:
             fragment["parent"] = fragment_parent
 
         elif fragment_type == constants.M3_CPP_NAMESPACE_TYPE:
+            fragment_simple_name = simple_name or "UnnamedNamespace"
             fragment["loc"] = loc_path or "UnnamedNamespace"
-            fragment["simpleName"] = simple_name or "UnnamedNamespace"
-
+            fragment["fullLoc"] = fragment_type + ":" + fragment_simple_name
+            fragment["simpleName"] = fragment_simple_name
     # Handle known fragment types
     if fragment_type in constants.FRAGMENT_PARSERS:
         parse_and_set_fragment(fragment_type, constants.FRAGMENT_PARSERS[fragment_type])
@@ -472,7 +493,7 @@ def parse_rascal_loc(loc, schema=None):
 
 def parse_rascal_problem_loc(problem_loc):
     try:
-        loc_path = re.sub(constants.M3_PROBLEM_LOC_SCM, "", problem_loc)
+        loc_path = re.sub(constants.M3_CPP_PROBLEM_LOC_SCM, "", problem_loc)
         id_and_message = loc_path.split("?message=")
 
         if len(id_and_message) == 2:
@@ -503,7 +524,7 @@ def get_fragment_declaration_location(declaration_loc):
     location = {}
 
     location["file"], location["position"] = re.split("\\(", declaration_loc)
-    location["file"] = re.sub(constants.M3_FILE_LOC_SCM, "", location.get("file"))[:-1]
+    location["file"] = re.sub(constants.M3_CPP_FILE_LOC_SCM, "", location.get("file"))[:-1]
     location["position"] = "(" + location["position"]
 
     return location
@@ -536,7 +557,7 @@ def get_fragment_type(element, field):
                 return "string"
             else:
                 elementParts = re.split(
-                    "\\/", re.sub(constants.M3_CLASS_LOC_SCM, "", element[field])
+                    "\\/", re.sub(constants.M3_CPP_CLASS_LOC_SCM, "", element[field])
                 )
                 return elementParts[len(elementParts) - 1]
         if field == "msg":
@@ -565,7 +586,7 @@ def get_parameter_type(element, field):
 
 def update_parameter_info(parameter, rel):
     parameter["function"] = re.split("\\(", re.split("/", rel[0])[-2])[0]
-    loc_path = re.sub(constants.M3_PARAMETER_LOC_SCM, "", rel[0])
+    loc_path = re.sub(constants.M3_CPP_PARAMETER_LOC_SCM, "", rel[0])
     loc_path_list = loc_path.split("/")
     parameter["simpleName"] = loc_path_list[-1]
 

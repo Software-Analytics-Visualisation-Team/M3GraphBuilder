@@ -12,6 +12,7 @@ class Cpp:
     path = None
     containers = {}
     structures = {}
+    structure_alieases = {}
     operations = {}
 
     def __init__(self, path, parsed, verbose, issues=None) -> None:
@@ -29,10 +30,10 @@ class Cpp:
 
         match kind:
             case "hasScript":
-                edge_id = hash(content[0] + content[1].get("fragmentType") + ":" + content[1].get("loc"))
+                edge_id = hash(content[0] + content[1].get("fullLoc"))
                 source = content[1].get("parent")
                 properties = {"weight": 1}
-                target = content[1].get("fragmentType") + ":" + content[1].get("loc")
+                target = content[1].get("fullLoc")
                 labels = [kind]
 
             case "hasParameter":
@@ -53,20 +54,14 @@ class Cpp:
 
             case "specializes":
                 for base_fragment in content[1]["extends"]:
-                    edge_id = hash(content[0]) + hash(base_fragment.get("fragmentType")
-                                + ":"
-                                + base_fragment.get("loc"))
+                    edge_id = hash(content[0]) + hash(base_fragment.get("fullLoc"))
                     self.lpg["elements"]["edges"].append(
                         {
                             "data": {
                                 "id": edge_id,
-                                "source": base_fragment.get("fragmentType")
-                                + ":"
-                                + base_fragment.get("loc"),
+                                "source": base_fragment.get("fullLoc"),
                                 "properties": {"weight": 1},
-                                "target": content[1].get("fragmentType")
-                                + ":"
-                                + content[1].get("loc"),
+                                "target": content[1].get("fullLoc"),
                                 "labels": [kind],
                             }
                         }
@@ -111,13 +106,9 @@ class Cpp:
                     {
                         "data": {
                             "id": edge_id,
-                            "source": content[1]["source"].get("fragmentType")
-                            + ":"
-                            + content[1]["source"].get("loc"),
+                            "source": content[1]["source"].get("fullLoc"),
                             "properties": {"weight": content[1]["weight"]},
-                            "target": content[1]["target"].get("fragmentType")
-                            + ":"
-                            + content[1]["target"].get("loc"),
+                            "target": content[1]["target"].get("fullLoc"),
                             "labels": [kind],
                         }
                     }
@@ -145,20 +136,15 @@ class Cpp:
 
                             for child_fragment in contained_fragments:
                                 edge_id = hash(content[0]) + hash(
-                                    child_fragment.get("fragmentType") + child_fragment.get("loc")
-                                )
+                                    child_fragment.get("fullLoc"))
 
                                 self.lpg["elements"]["edges"].append(
                                     {
                                         "data": {
                                             "id": edge_id,
-                                            "source": content[1].get("fragmentType")
-                                            + ":"
-                                            + content[1].get("loc"),
+                                            "source": content[1].get("fullLoc"),
                                             "properties": {"weight": 1},
-                                            "target": child_fragment.get("fragmentType")
-                                            + ":"
-                                            + child_fragment.get("loc"),
+                                            "target": child_fragment.get("fullLoc"),
                                             "labels": [kind],
                                         }
                                     }
@@ -276,7 +262,7 @@ class Cpp:
 
         match kind:
             case "macro":
-                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
+                node_id = content[1].get("fullLoc")
                 properties = {
                     "simpleName": content[1].get("loc"),
                     "description": "\n".join(
@@ -288,7 +274,7 @@ class Cpp:
                 labels = ["Structure"]
 
             case "translation_unit":
-                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
+                node_id = content[1].get("fullLoc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "description": content[1].get("physicalLoc"),
@@ -337,7 +323,7 @@ class Cpp:
                 | "partial_specialization"
                 | "deferred_class"
             ):
-                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
+                node_id = content[1].get("fullLoc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
@@ -346,7 +332,7 @@ class Cpp:
                 labels = ["Structure"]
 
             case "namespace":
-                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
+                node_id = content[1].get("fullLoc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": "package",
@@ -566,7 +552,7 @@ class Cpp:
         logging.info("Adding template types")
 
         declarations_dict = m3_utils.parse_M3_declarations(
-            self.parsed, template_types, constants.M3_TEMPLATE_TYPE_PARAM_LOC_SCM
+            self.parsed, template_types, constants.M3_CPP_TEMPLATE_TYPE_PARAM_LOC_SCM
         )
         template_types_updated_from_Declarations = declarations_dict.get("fragments")
 
@@ -664,7 +650,7 @@ class Cpp:
                 # logging.debug("parent successfully recognized")
                 parent_fragment = self.structures.get(m[1]["parent"])
 
-                m[1]["parent"] = parent_fragment.get("fragmentType") + ":" + parent_fragment.get("loc")
+                m[1]["parent"] = parent_fragment.get("fullLoc")
                 self.add_edges("hasScript", m)
 
             # self.add_edges("returnType", m)
@@ -709,7 +695,7 @@ class Cpp:
                 # logging.debug("parent successfully recognized")
                 parent_fragment = containers_dict.get(f[1]["parent"])
 
-                f[1]["parent"] = parent_fragment.get("fragmentType") + ":" + parent_fragment.get("loc")
+                f[1]["parent"] = parent_fragment.get("fullLoc")
                 self.add_edges("hasScript", f)
 
             # self.add_edges("contains", f)
@@ -735,6 +721,8 @@ class Cpp:
         self.operations.update(functions)
         callGraph_data = m3_utils.parse_M3_callGraph(self.parsed, self.operations)
         invocations = callGraph_data.get("invocations")
+        # overrides = callGraph_data.get("overrides")
+
         for invocation in invocations.items():
             self.add_edges("invokes", invocation)
 
@@ -745,9 +733,7 @@ class Cpp:
                 operation_loc[1].get("loc")
             )
 
-            if ( loc_fragment_parent and loc_fragment_parent not in self.structures.keys()
-                and loc_fragment_parent not in self.containers.keys()
-            ):
+            if ( loc_fragment_parent and loc_fragment_parent not in self.structure_alieases.keys()):
                 logging.info("Missing fragment parent %s not in structures: %s", loc_fragment_parent, loc_path)
             else:
                 self.add_nodes(
@@ -764,25 +750,28 @@ class Cpp:
                     ),
                 )
                 if loc_fragment_parent:
-                    loc_fragment_parent = self.containers.get(loc_fragment_parent, self.structures.get(loc_fragment_parent))
-                    parent_node_id = (
-                        loc_fragment_parent.get("fragmentType")
-                        + ":"
-                        + loc_fragment_parent.get("loc")
-                    )
-                    self.add_edges(
-                        "hasScript",
-                        tuple(
-                            (
-                                loc_path,
-                                {
-                                    "loc": loc_path,
-                                    "fragmentType": operation_loc[1].get("fragmentType"),
-                                    "parent": parent_node_id,
-                                },
+                    fragment_parents = self.structure_alieases.get(loc_fragment_parent).get("structures")
+
+                    for parent in fragment_parents:
+                        loc_fragment_parent = self.containers.get(parent, self.structures.get(parent))
+                        if loc_fragment_parent:
+                            parent_node_id = (
+                                loc_fragment_parent.get("fullLoc")
                             )
-                        ),
-                    )
+                            self.add_edges(
+                                "hasScript",
+                                tuple(
+                                    (
+                                        loc_path,
+                                        {
+                                            "loc": loc_path,
+                                            "fragmentType": operation_loc[1].get("fragmentType"),
+                                            "parent": parent_node_id,
+                                            "fullLoc": operation_loc[1].get("fragmentType") + ":" + loc_path
+                                        },
+                                    )
+                                ),
+                            )
 
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
@@ -792,7 +781,7 @@ class Cpp:
         handle_counter = 0
 
         for structure in self.structures.items():
-            structure_key = structure[1].get("fragmentType") + ":" + structure[1].get("loc")
+            structure_key = structure[1].get("fullLoc")
             if contained_structures.get(structure_key) is None:
                 counter += 1
                 loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(structure[1].get("loc"))
@@ -807,13 +796,9 @@ class Cpp:
                         {
                             "data": {
                                 "id": edge_id,
-                                "source": parent.get("fragmentType")
-                                + ":"
-                                + parent.get("loc"),
+                                "source": parent.get("fullLoc"),
                                 "properties": {"weight": 1},
-                                "target": structure[1].get("fragmentType")
-                                + ":"
-                                + structure[1].get("loc"),
+                                "target": structure[1].get("fullLoc"),
                                 "labels": ["contains"],
                             }
                         }
@@ -826,6 +811,7 @@ class Cpp:
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
         declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
         containment_dict, contained_structures = m3_utils.parse_M3_containment(self.parsed)
+        self.structure_alieases = deepcopy(containment_dict.get("structure_aliases"))
         macros_dict = m3_utils.parse_M3_macro_expansions(self.parsed)
 
         self.add_macros(macros_dict)
@@ -883,6 +869,7 @@ class Cpp:
         # files_for_methods = add_methods_dict.get("files_for_methods_set")
 
         functions_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TYPE)
+
         functions_dict.update(declaredType_dicts.get("functions"))
 
         self.add_functions(
