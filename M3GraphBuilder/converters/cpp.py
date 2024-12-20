@@ -4,7 +4,6 @@ import M3GraphBuilder.converters.constants as constants
 import M3GraphBuilder.converters.m3_utils as m3_utils
 import logging
 
-
 class Cpp:
     primitives = ["int", "double", "float", "void", "char", "string", "boolean"]
     lpg = {"elements": {"nodes": [], "edges": []}}
@@ -12,8 +11,8 @@ class Cpp:
     path = None
     containers = {}
     structures = {}
-    structure_alieases = {}
-    operations = {}
+    containers_structures_simple_names = {}
+    scripts = {}
 
     def __init__(self, path, parsed, verbose, issues=None) -> None:
         self.path = path
@@ -457,39 +456,22 @@ class Cpp:
             f"Successfully added {len(partial_specializations)} partial specializations to the graph."
         )
 
-    def add_methods(self, methods, parameters):
+    def add_methods(self, methods):
         logging.info("Adding methods")
 
-        if self.verbose:
-            logging.info(
-                f"[VERBOSE] Updating declared locations for {len(methods)} methods."
-            )
-
-        declarations_dict = m3_utils.parse_M3_declarations(
-            self.parsed, methods, constants.M3_CPP_METHOD_TYPE
-        )
-        methods_updated_from_Declarations = declarations_dict.get("fragments")
-
-        for m in methods_updated_from_Declarations.items():
+        for m in methods.items():
             self.add_nodes("method", m)
 
-            if m[1].get("parent") in self.structures.keys():
-
-                parent_fragment = self.structures.get(m[1]["parent"])
-
-                m[1]["parent"] = parent_fragment.get("fullLoc")
-                self.add_edges("hasScript", m)
-
-            method_parameters = parameters.get(m[1].get("functionLoc"))
-            if method_parameters is not None:
-
-                for param in method_parameters:
-                    self.add_nodes("parameter", param)
-                    self.add_edges("hasParameter", param)
+            parent_fragments_locs = self.containers_structures_simple_names.get(m[1]["parent"]).get("fullLocs")
+            if parent_fragments_locs:
+                
+                for parent_loc in parent_fragments_locs:
+                    m[1]["parent"] = parent_loc
+                    self.add_edges("hasScript", m)
 
         logging.info(f"Successfully added {len(methods)} methods to the graph.")
 
-    def add_functions(self, functions, containers_dict, parameters):
+    def add_functions(self, functions):
         logging.info("Adding functions")
 
         if self.verbose:
@@ -504,210 +486,194 @@ class Cpp:
 
         for f in functions_updated_from_Declarations.items():
             self.add_nodes("function", f)
-
-            if f[1].get("parent") in containers_dict.keys():
-
-                parent_fragment = containers_dict.get(f[1]["parent"])
-
-                f[1]["parent"] = parent_fragment.get("fullLoc")
+            if f[1]["parent"] in self.containers_structures_simple_names.keys():
+                parent_fragment_loc = self.containers_structures_simple_names.get(f[1]["parent"]).get("fullLocs")[0]
+                f[1]["parent"] = parent_fragment_loc
                 self.add_edges("hasScript", f)
-
-            function_parameters = parameters.get(f[1].get("functionLoc"))
-
-            if function_parameters is not None:
-                for param in function_parameters:
-                    self.add_nodes("parameter", param)
-                    self.add_edges("hasParameter", param)
-            else:
-                logging.debug("function %s with empty parameters", f)
 
         logging.info(f"Successfully added {len(functions)} functions to the graph.")
 
-    def add_invocations(self, methods, functions):
+    def add_invocations(self, invocations):
         logging.info("Adding invocations")
-
-        self.operations = deepcopy(methods)
-        self.operations.update(functions)
-        callGraph_data = m3_utils.parse_M3_callGraph(self.parsed, self.operations)
-        invocations = callGraph_data.get("invocations")
 
         for invocation in invocations.items():
             self.add_edges("invokes", invocation)
 
-        unknown_operations = callGraph_data.get("unknown_operations")
-
-        for operation_loc in unknown_operations.items():
-            loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(
-                operation_loc[1].get("loc")
-            )
-
-            if (
-                loc_fragment_parent
-                and loc_fragment_parent not in self.structure_alieases.keys()
-            ):
-                logging.info(
-                    "Missing fragment parent %s not in structures: %s",
-                    loc_fragment_parent,
-                    loc_path,
-                )
-            else:
-                self.add_nodes(
-                    "function",
-                    tuple(
-                        (
-                            loc_path,
-                            {
-                                "loc": loc_path,
-                                "fragmentType": operation_loc[1].get("fragmentType"),
-                                "simpleName": loc_fragment,
-                            },
-                        )
-                    ),
-                )
-                if loc_fragment_parent:
-                    fragment_parents = self.structure_alieases.get(
-                        loc_fragment_parent
-                    ).get("structures")
-
-                    for parent in fragment_parents:
-                        loc_fragment_parent = self.containers.get(
-                            parent, self.structures.get(parent)
-                        )
-                        if loc_fragment_parent:
-                            parent_node_id = loc_fragment_parent.get("fullLoc")
-                            self.add_edges(
-                                "hasScript",
-                                tuple(
-                                    (
-                                        loc_path,
-                                        {
-                                            "loc": loc_path,
-                                            "fragmentType": operation_loc[1].get(
-                                                "fragmentType"
-                                            ),
-                                            "parent": parent_node_id,
-                                            "fullLoc": operation_loc[1].get(
-                                                "fragmentType"
-                                            )
-                                            + ":"
-                                            + loc_path,
-                                        },
-                                    )
-                                ),
-                            )
-
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
-    def handle_orphan_structures(self, contained_structures):
-
+    def contain_orphan_structures(self, contained_structures):
         counter = 0
         handle_counter = 0
 
         for structure in self.structures.items():
             structure_key = structure[1].get("fullLoc")
-            if contained_structures.get(structure_key) is None:
+            if structure_key and contained_structures.get(structure_key) is None:
                 counter += 1
-                loc_path, loc_fragment_parent, loc_fragment = m3_utils.parse_rascal_loc(
+                _, loc_fragment_parent, _ = m3_utils.parse_rascal_loc(
                     structure[1].get("loc")
                 )
                 if (
-                    loc_fragment_parent in self.containers.keys()
-                    or loc_fragment_parent in self.structures.keys()
+                    loc_fragment_parent and loc_fragment_parent in self.containers_structures_simple_names.keys()
                 ):
-                    parent = self.containers.get(
-                        loc_fragment_parent, self.structures.get(loc_fragment_parent)
-                    )
+                    parents_full_locs = self.containers_structures_simple_names.get(loc_fragment_parent).get("fullLocs")
 
-                    edge_id = hash(parent.get("loc")) + hash(structure_key)
+                    for parent_full_loc in parents_full_locs:
+                        edge_id = hash(parent_full_loc) + hash(structure_key)
+                        source = parent_full_loc
+                        target = structure[1].get("fullLoc")
+                        properties = {"weight": 1}
+                        labels = ["contains"]
+                        
+                        self.append_edge(edge_id, source, properties, target, labels)
 
-                    self.lpg["elements"]["edges"].append(
-                        {
-                            "data": {
-                                "id": edge_id,
-                                "source": parent.get("fullLoc"),
-                                "properties": {"weight": 1},
-                                "target": structure[1].get("fullLoc"),
-                                "labels": ["contains"],
-                            }
-                        }
-                    )
                     handle_counter += 1
 
-        print(f"Handled {handle_counter} out of {counter} orphaned structures")
+        logging.info(f"Handled {handle_counter} out of {counter} orphaned structures")
+
+    def handle_unknown_scripts(self, unknown_scripts):
+        counter = 0
+        def add_script_node(loc_path, script_loc):
+            node_id = script_loc[1].get("fragmentType") + ":" + loc_path
+            properties = {
+                "loc": loc_path,
+                "fragmentType": script_loc[1].get("fragmentType"),
+                "simpleName": script_loc[1].get("simpleName"),
+            }
+            labels = ["function"]
+            self.append_node(node_id, properties, labels)
+
+        def add_parent_has_script(loc_path, script_parents):
+            for parent_full_Loc in script_parents:
+
+                source = parent_full_Loc
+                target = script_loc[1].get("fragmentType") + ":" + loc_path
+                edge_id = hash(source + target)
+                properties = {"weight": 1}
+                labels = ["hasScript"]
+                self.append_edge(edge_id, source, properties, target, labels)
+
+        logging.info("Adding unknown scripts")
+        for script_loc in unknown_scripts.items():
+            loc_path, parent_simple_name, _ = m3_utils.parse_rascal_loc(
+                script_loc[1].get("loc")
+            )
+            if (
+                parent_simple_name
+                and parent_simple_name not in self.containers_structures_simple_names.keys()
+            ):
+                logging.info(
+                    "Missing fragment parent %s not in structures: %s",
+                    parent_simple_name,
+                    loc_path,
+                )
+            elif parent_simple_name:
+                    add_script_node(loc_path, script_loc)
+                    script_parents = self.containers_structures_simple_names.get(
+                        parent_simple_name
+                    ).get("fullLocs")
+                    add_parent_has_script(loc_path, script_parents)
+                    counter += 1
+
+        logging.info(f"Added {counter} unknown scripts to the graph")
+
 
     def export(self):
+        #containers
+        namespaces_dict = {}
+        #structures
+        expanded_macros_dict = {}
+        classes_dict = {}
+        deferred_classes_dict = {}
+        templates_dict = {}
+        template_types_dict = {}
+        specializations_dict = {}
+        partial_specializations_dict = {}
+        #operations
+        methods_dict = {}
+        functions_dict = {}
+
+        def extract_containers():
+            nonlocal namespaces_dict
+            namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
+            
+            self.containers = deepcopy(namespaces_dict)
+
+        def extract_structures():
+            self.containers_structures_simple_names = deepcopy(containment_dict.get("containers_structures_simple_names"))
+
+            nonlocal templates_dict, template_types_dict, specializations_dict, partial_specializations_dict, classes_dict, deferred_classes_dict, expanded_macros_dict
+            
+            expanded_macros_dict = m3_utils.parse_M3_macro_expansions(self.parsed)
+
+            templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
+            template_types_dict = containment_dict.get(constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE)
+            specializations_dict = containment_dict.get(constants.M3_CPP_CLASS_SPECIALIZATION_TYPE)
+            partial_specializations_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE)
+            classes_dict = containment_dict.get(constants.M3_CPP_CLASS_TYPE)
+            deferred_classes_dict = containment_dict.get(constants.M3_CPP_DEFERRED_CLASS_TYPE)
+                    
+            self.structures = deepcopy(templates_dict)
+            self.structures.update(template_types_dict)
+            self.structures.update(specializations_dict)
+            self.structures.update(partial_specializations_dict)
+            self.structures.update(classes_dict)
+            self.structures.update(deferred_classes_dict)
+
+        def add_containers():
+            self.add_namespaces(namespaces_dict)
+
+        def add_structures():
+            self.add_macros(expanded_macros_dict)
+            self.add_templates(templates_dict)
+            self.add_template_types(template_types_dict)
+            self.add_specializations(specializations_dict)
+            self.add_partial_specializations(partial_specializations_dict)
+            self.add_classes(classes_dict)
+            self.add_deferred_classes(deferred_classes_dict)
+
+        def extract_scripts():
+            nonlocal functions_dict, methods_dict
+
+            functions_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TYPE)
+            functions_dict.update(declaredType_dicts.get("functions"))
+
+            methods_dict = declaredType_dicts.get("methods")
+            # update method parents from declarations
+            declarations_dict = m3_utils.parse_M3_declarations(self.parsed, methods_dict, constants.M3_CPP_METHOD_TYPE)
+            methods_dict = declarations_dict.get("fragments")
+
+            self.scripts = deepcopy(methods_dict)
+            self.scripts.update(functions_dict)
+
+        def add_scripts():
+            self.add_methods(methods_dict)
+            self.add_functions(functions_dict)
+
+        # Parse M3 Sections
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
-        declarations_dict = m3_utils.parse_M3_declarations(self.parsed)
-        containment_dict, contained_structures = m3_utils.parse_M3_containment(
-            self.parsed
-        )
-        self.structure_alieases = deepcopy(containment_dict.get("structure_aliases"))
-        macros_dict = m3_utils.parse_M3_macro_expansions(self.parsed)
+        containment_dict, contained_structures = m3_utils.parse_M3_containment(self.parsed)
 
-        self.add_macros(macros_dict)
+        # Extract and add nodes to graph:
+        extract_containers()
+        extract_structures()
+        extract_scripts()
 
-        translation_units = declarations_dict.get("translation_units")
-        containment_translation_units = containment_dict.get(
-            constants.M3_CPP_TRANSLATION_UNIT_TYPE
-        )
-        translation_units.update(containment_translation_units)
+        add_containers()
+        add_structures()
+        add_scripts()
 
-        namespaces_dict = containment_dict.get(constants.M3_CPP_NAMESPACE_TYPE)
-        self.add_namespaces(namespaces_dict)
-        self.containers = deepcopy(namespaces_dict)
+        self.contain_orphan_structures(contained_structures)
 
-        templates_dict = containment_dict.get(constants.M3_CPP_CLASS_TEMPLATE_TYPE)
-        self.add_templates(templates_dict)
-        self.structures = deepcopy(templates_dict)
+        #Extract and add edges to graph
+        callGraph_dicts = m3_utils.parse_M3_callGraph(self.parsed, self.scripts)
 
-        template_types_dict = containment_dict.get(
-            constants.M3_TEMPLATE_TYPE_PARAMETER_TYPE
-        )
-        self.add_template_types(template_types_dict)
-        self.structures.update(template_types_dict)
+        invocations = callGraph_dicts.get("invocations")
+        # overrides = callGraph_dicts.get("overrides")
+        unknown_scripts = callGraph_dicts.get("unknown_scripts")
+        # print(self.scripts)
+        self.handle_unknown_scripts(unknown_scripts)
 
-        specializations_dict = containment_dict.get(
-            constants.M3_CPP_CLASS_SPECIALIZATION_TYPE
-        )
-        self.add_specializations(specializations_dict)
-        self.structures.update(specializations_dict)
-
-        partial_specializations_dict = containment_dict.get(
-            constants.M3_CPP_CLASS_TEMPLATE_PARTIAL_SPEC_TYPE
-        )
-        self.add_partial_specializations(partial_specializations_dict)
-        self.structures.update(specializations_dict)
-
-        classes_dict = containment_dict.get(constants.M3_CPP_CLASS_TYPE)
-        self.add_classes(classes_dict)
-        self.structures.update(classes_dict)
-
-        deferred_classes_dict = containment_dict.get(
-            constants.M3_CPP_DEFERRED_CLASS_TYPE
-        )
-        self.add_deferred_classes(deferred_classes_dict)
-        self.structures.update(deferred_classes_dict)
-
-        self.handle_orphan_structures(contained_structures)
-
-        add_methods_dict = self.add_methods(
-            declaredType_dicts.get("methods"),
-            declarations_dict.get("parameters"),
-        )
-
-        functions_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TYPE)
-
-        functions_dict.update(declaredType_dicts.get("functions"))
-
-        self.add_functions(
-            functions_dict,
-            namespaces_dict,
-            declarations_dict.get("parameters"),
-        )
-
-        self.add_invocations(
-            declaredType_dicts.get("methods"), declaredType_dicts.get("functions")
-        )
+        self.add_invocations(invocations)
 
         with open(self.path, "w") as graph_file:
             graph_file.write(json.dumps(self.lpg))

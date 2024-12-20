@@ -196,7 +196,7 @@ def parse_M3_containment(m3):
     translation_unit_dict = {}
     functions_dict = {}
     contained_structures = {}
-    structure_aliases_dict = {}
+    containers_structures_simple_names_dict = {}
 
     containment_dicts = {
         constants.M3_CPP_NAMESPACE_TYPE: namespaces_dict,
@@ -208,7 +208,7 @@ def parse_M3_containment(m3):
         constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
         constants.M3_CPP_FUNCTION_TYPE: functions_dict,
         constants.M3_CPP_DEFERRED_CLASS_TYPE: deferred_classes_dict,
-        "structure_aliases": structure_aliases_dict
+        "containers_structures_simple_names": containers_structures_simple_names_dict
     }
 
     def update_namespace_fragment(namespace_fragment, contained_fragment):
@@ -250,14 +250,14 @@ def parse_M3_containment(m3):
         return fragment
         
     def update_structure_alias(fragment):
-        alias = structure_aliases_dict.get(fragment["loc"])
+        alias = containers_structures_simple_names_dict.get(fragment["loc"])
         if alias is not None:
-            if fragment["fullLoc"] not in alias.get("structures"):
-                alias["structures"].append(fragment["fullLoc"])
+            if fragment["fullLoc"] not in alias.get("fullLocs"):
+                alias["fullLocs"].append(fragment["fullLoc"])
 
-            structure_aliases_dict[fragment["loc"]] = alias
+            containers_structures_simple_names_dict[fragment["loc"]] = alias
         else:
-            structure_aliases_dict[fragment["loc"]] = {"structures": [fragment["fullLoc"]]}        
+            containers_structures_simple_names_dict[fragment["loc"]] = {"fullLocs": [fragment["fullLoc"]]}        
 
     for rel in containment_data:
         parent_fragment = parse_M3_loc_statement(rel[0])
@@ -321,7 +321,7 @@ def parse_M3_containment(m3):
     return containment_dicts, contained_structures
 
 
-def parse_M3_callGraph(m3, operations):
+def parse_M3_callGraph(m3, scripts):
     def matches_any_permitted_scheme(fragment_rel, allowed_schemes):
         return any(re.match(scheme, fragment_rel) for scheme in allowed_schemes)
     
@@ -330,7 +330,7 @@ def parse_M3_callGraph(m3, operations):
     methodInvocation_data = m3['methodInvocations']
     overrides = {}
     invocations = {}
-    unknown_operations = {}
+    unknown_scripts = {}
     result = {}
 
     def process_invocation_relations(relations, edges, inverted_relation = False):
@@ -345,14 +345,15 @@ def parse_M3_callGraph(m3, operations):
                         and matches_any_permitted_scheme(rel[1], constants.OPERATIONS_FRAGMENT_LOC_SCM)
                     ):
                         source = parse_M3_loc_statement(rel[0]) if not inverted_relation else parse_M3_loc_statement(rel[1])
-
-                        if source.get("loc") not in operations.keys():
-                            unknown_operations[source.get("loc")] = source
+                        if source.get("loc") not in scripts.keys():
+                            unknown_scripts[source.get("loc")] = source
 
                         target = parse_M3_loc_statement(rel[1]) if not inverted_relation else parse_M3_loc_statement(rel[0])
-
-                        if target.get("loc") not in operations.keys():
-                            unknown_operations[target.get("loc")] = target
+                        if target.get("loc") == "cpp/com/CComObjectEx/QueryInterface()":
+                            print(target)
+                            print(unknown_scripts.get(target.get("loc")))
+                        if target.get("loc") not in scripts.keys():
+                            unknown_scripts[target.get("loc")] = target
 
                         invocation_id = source.get("loc") + "--" + target.get("loc")
 
@@ -381,16 +382,16 @@ def parse_M3_callGraph(m3, operations):
     logging.info(f"length of invocation list after methodInvocations:{len(invocations)}")
     overrides = process_invocation_relations(methodOverrides_data, overrides, inverted_relation=True)
     logging.info(f"length of overrides list:{len(overrides)}")
-    if len(unknown_operations) > 0:
+    if len(unknown_scripts) > 0:
         logging.info(
-            "[VERBOSE] Found %s unknown operations when parsing callGraph",
-            len(unknown_operations.keys()),
+            "[VERBOSE] Found %s unknown scripts when parsing callGraph",
+            len(unknown_scripts.keys()),
         )
 
     result = {
         "invocations": invocations,
         "overrides": overrides,
-        "unknown_operations": unknown_operations,
+        "unknown_scripts": unknown_scripts,
     }
 
     return result
