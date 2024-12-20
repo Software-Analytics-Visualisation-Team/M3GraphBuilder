@@ -21,7 +21,7 @@ def parse_M3_function_Definitions(m3, fragments_dict):
     for fragment in fragments_dict.items():
         location = fragment[1].get("location")
         if location is None:
-            unlocated_fragments_dict[fragment[1].get("simpleName")] = fragment[1]
+            unlocated_fragments_dict[fragment[1].get("fullLoc")] = fragment[1]
         else:
             files_containing_fragments_set.add(location["file"])
 
@@ -128,13 +128,13 @@ def parse_M3_declaredType(m3):
                 fragment["returnType"] = get_fragment_type(
                     fragment_info, get_fragment_type_key(fragment_info)
                 )
-                methods_dict[fragment["loc"]] = fragment
+                methods_dict[fragment["fullLoc"]] = fragment
             case constants.M3_CPP_FUNCTION_TYPE:
                 fragment_info = rel[1]["returnType"]
                 fragment["returnType"] = get_fragment_type(
                     fragment_info, get_fragment_type_key(fragment_info)
                 )
-                functions_dict[fragment["loc"]] = fragment
+                functions_dict[fragment["fullLoc"]] = fragment
             case constants.M3_CPP_VARIABLE_TYPE:
                 fragment["type"] = get_fragment_type(
                     rel[1], get_fragment_type_key(rel[1])
@@ -195,6 +195,9 @@ def parse_M3_containment(m3):
     partial_specializations_dict = {}
     translation_unit_dict = {}
     functions_dict = {}
+    methods_dict = {}
+    deferred_functions_dict = {}
+    function_templates_dict = {}
     contained_structures = {}
     containers_structures_simple_names_dict = {}
 
@@ -208,6 +211,9 @@ def parse_M3_containment(m3):
         constants.M3_CPP_TRANSLATION_UNIT_TYPE: translation_unit_dict,
         constants.M3_CPP_FUNCTION_TYPE: functions_dict,
         constants.M3_CPP_DEFERRED_CLASS_TYPE: deferred_classes_dict,
+        constants.M3_CPP_METHOD_TYPE: methods_dict,
+        constants.M3_CPP_FUNCTION_TEMPLATE_TYPE: function_templates_dict,
+        constants.M3_CPP_DEFERRED_FUNCTION_TYPE: deferred_functions_dict,
         "containers_structures_simple_names": containers_structures_simple_names_dict
     }
 
@@ -314,6 +320,13 @@ def parse_M3_containment(m3):
                     structure_fragment = update_fragment_contains(
                         structure_fragment, child_fragment
                     )
+                    
+                    update_or_add_fragment(child_fragment)
+                elif(
+                    child_fragment["fragmentType"]
+                    in constants.OPERATIONS_FRAGMENT_TYPES
+                    ):
+                    update_or_add_fragment(child_fragment)
 
                 relevant_dict[structure_fragment["fullLoc"]] = structure_fragment
 
@@ -345,17 +358,14 @@ def parse_M3_callGraph(m3, scripts):
                         and matches_any_permitted_scheme(rel[1], constants.OPERATIONS_FRAGMENT_LOC_SCM)
                     ):
                         source = parse_M3_loc_statement(rel[0]) if not inverted_relation else parse_M3_loc_statement(rel[1])
-                        if source.get("loc") not in scripts.keys():
-                            unknown_scripts[source.get("loc")] = source
+                        if source.get("fullLoc") not in scripts.keys():
+                            unknown_scripts[source.get("fullLoc")] = source
 
                         target = parse_M3_loc_statement(rel[1]) if not inverted_relation else parse_M3_loc_statement(rel[0])
-                        if target.get("loc") == "cpp/com/CComObjectEx/QueryInterface()":
-                            print(target)
-                            print(unknown_scripts.get(target.get("loc")))
-                        if target.get("loc") not in scripts.keys():
-                            unknown_scripts[target.get("loc")] = target
+                        if target.get("fullLoc") not in scripts.keys():
+                            unknown_scripts[target.get("fullLoc")] = target
 
-                        invocation_id = source.get("loc") + "--" + target.get("loc")
+                        invocation_id = source.get("fullLoc") + "--" + target.get("fullLoc")
 
                         existing_invocation = edges.get(invocation_id)
                         if existing_invocation is None:

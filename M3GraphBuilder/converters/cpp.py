@@ -171,8 +171,12 @@ class Cpp:
                 }
                 labels = ["Structure"]
 
-            case "function":
-                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
+            case (
+                "function"
+                | "deferred_function"
+                | "function_template"
+            ):
+                node_id = content[1].get("fullLoc")
                 properties = {
                     "simpleName": content[1]["simpleName"],
                     "description": location,
@@ -181,7 +185,7 @@ class Cpp:
                 labels = ["Operation"]
 
             case "method":
-                node_id = content[1].get("fragmentType") + ":" + content[1].get("loc")
+                node_id = content[1].get("fullLoc")
                 properties = {
                     "simpleName": content[1].get("simpleName"),
                     "kind": kind,
@@ -213,8 +217,12 @@ class Cpp:
                     "description": location,
                 }
                 labels = ["Container"]
-
-        self.append_node(node_id, properties, labels)
+        if node_id is None or properties == {} or labels == []:
+            logging.error(
+                f"Node with empty node id, properties, or labels: {content}."
+            )
+        else:
+            self.append_node(node_id, properties, labels)
 
     def get_fragment_files(self, fragments):
         function_Definitions_dict = m3_utils.parse_M3_function_Definitions(
@@ -501,6 +509,31 @@ class Cpp:
 
         logging.info(f"Successfully added {len(invocations)} invocations to the graph.")
 
+    def add_deferred_functions(self, deferred_functions):
+        logging.info("Adding deferred functions")
+
+        for f in deferred_functions.items():
+            self.add_nodes("deferred_function", f)
+            if f[1]["parent"] in self.containers_structures_simple_names.keys():
+                parent_fragment_loc = self.containers_structures_simple_names.get(f[1]["parent"]).get("fullLocs")[0]
+                f[1]["parent"] = parent_fragment_loc
+                self.add_edges("hasScript", f)
+
+        logging.info(f"Successfully added {len(deferred_functions)} deferred functions to the graph.")
+
+
+    def add_function_templates(self, function_templates):
+        logging.info("Adding function templates")
+
+        for f in function_templates.items():
+            self.add_nodes("function_template", f)
+            if f[1]["parent"] in self.containers_structures_simple_names.keys():
+                parent_fragment_loc = self.containers_structures_simple_names.get(f[1]["parent"]).get("fullLocs")[0]
+                f[1]["parent"] = parent_fragment_loc
+                self.add_edges("hasScript", f)
+
+        logging.info(f"Successfully added {len(function_templates)} function templates to the graph.")
+
     def contain_orphan_structures(self, contained_structures):
         counter = 0
         handle_counter = 0
@@ -533,20 +566,20 @@ class Cpp:
     def handle_unknown_scripts(self, unknown_scripts):
         counter = 0
         def add_script_node(loc_path, script_loc):
-            node_id = script_loc[1].get("fragmentType") + ":" + loc_path
+            node_id = script_loc[1].get("fullLoc")
             properties = {
-                "loc": loc_path,
+                "description": loc_path,
                 "fragmentType": script_loc[1].get("fragmentType"),
                 "simpleName": script_loc[1].get("simpleName"),
             }
             labels = ["function"]
             self.append_node(node_id, properties, labels)
 
-        def add_parent_has_script(loc_path, script_parents):
+        def add_parent_has_script(script_parents):
             for parent_full_Loc in script_parents:
 
                 source = parent_full_Loc
-                target = script_loc[1].get("fragmentType") + ":" + loc_path
+                target = script_loc[1].get("fullLoc")
                 edge_id = hash(source + target)
                 properties = {"weight": 1}
                 labels = ["hasScript"]
@@ -571,7 +604,7 @@ class Cpp:
                     script_parents = self.containers_structures_simple_names.get(
                         parent_simple_name
                     ).get("fullLocs")
-                    add_parent_has_script(loc_path, script_parents)
+                    add_parent_has_script(script_parents)
                     counter += 1
 
         logging.info(f"Added {counter} unknown scripts to the graph")
@@ -591,6 +624,8 @@ class Cpp:
         #operations
         methods_dict = {}
         functions_dict = {}
+        deferred_functions_dict = {}
+        function_templates_dict = {}
 
         def extract_containers():
             nonlocal namespaces_dict
@@ -632,10 +667,13 @@ class Cpp:
             self.add_deferred_classes(deferred_classes_dict)
 
         def extract_scripts():
-            nonlocal functions_dict, methods_dict
+            nonlocal functions_dict, deferred_functions_dict, function_templates_dict, methods_dict
 
             functions_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TYPE)
             functions_dict.update(declaredType_dicts.get("functions"))
+            print(containment_dict.keys())
+            deferred_functions_dict = containment_dict.get(constants.M3_CPP_DEFERRED_FUNCTION_TYPE)
+            function_templates_dict = containment_dict.get(constants.M3_CPP_FUNCTION_TEMPLATE_TYPE)
 
             methods_dict = declaredType_dicts.get("methods")
             # update method parents from declarations
@@ -644,10 +682,14 @@ class Cpp:
 
             self.scripts = deepcopy(methods_dict)
             self.scripts.update(functions_dict)
+            self.scripts.update(deferred_functions_dict)
+            self.scripts.update(function_templates_dict)
 
         def add_scripts():
             self.add_methods(methods_dict)
             self.add_functions(functions_dict)
+            self.add_deferred_functions(deferred_functions_dict)
+            self.add_function_templates(function_templates_dict)
 
         # Parse M3 Sections
         declaredType_dicts = m3_utils.parse_M3_declaredType(self.parsed)
@@ -670,7 +712,7 @@ class Cpp:
         invocations = callGraph_dicts.get("invocations")
         # overrides = callGraph_dicts.get("overrides")
         unknown_scripts = callGraph_dicts.get("unknown_scripts")
-        # print(self.scripts)
+        # print(self.scripts.keys())
         self.handle_unknown_scripts(unknown_scripts)
 
         self.add_invocations(invocations)
