@@ -2,9 +2,12 @@
 name=CPP_Calculator
 desc=An extremelly optimized calculator application written in C++
 
+[input]
+path=input/
+
 [output]
-path=C:/Development/Software-Graphs/M3GB/
+path=output/
 
 [logging]
-path=C:/Development/Software-Analytics-Visualisation-Team/M3GraphBuilder/logs
+path=logs/
 verbose=False

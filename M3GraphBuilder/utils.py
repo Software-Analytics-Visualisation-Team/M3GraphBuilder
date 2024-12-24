@@ -43,15 +43,28 @@ def validate_dir(path):
 
 def load_config_from_ini_file():
     """Load configuration from an INI file located in the same directory as the script."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(script_dir, "config.ini")
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    app_root_parent = os.path.join(app_root, os.pardir)
+    config_path = os.path.join(app_root, "config.ini")
+    config_dict = {}
 
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found at: {config_path}")
 
     config = configparser.ConfigParser()
     config.read(config_path)
-    return {section: dict(config.items(section)) for section in config.sections()}
+
+    # Resolve paths from the config file
+    input_path = os.path.join(app_root_parent, config.get("input", "path"))
+    output_path = os.path.join(app_root_parent, config.get("output", "path"))
+    log_path = os.path.join(app_root_parent, config.get("logging", "path"))
+
+    config_dict["project"] = config.items("project")
+    config_dict["output"] ={ "path": output_path } 
+    config_dict["logging"] = { "path": log_path, "verbose": config.get("logging", "verbose") }
+
+
+    return config_dict
 
 
 def get_model_file_name(file_path):
