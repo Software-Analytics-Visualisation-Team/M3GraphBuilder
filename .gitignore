@@ -2,5 +2,7 @@ __pycache__/
 
 # Ignore logs and config
 logs
+output
+input
 *.log
 config.ini
