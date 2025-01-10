@@ -4,6 +4,33 @@ from M3GraphBuilder.graphlib.graph import create_node, create_edge
 global_namespace_const = "global-namespace"
 
 
+def delete_edge_by_target(edges, edge_type, edge_target, edge_source=None):
+    """
+    Removes the an edge from an edge dataframe, and returns the filtered dataframe.
+
+    Args:
+        edges (pd.DataFrame): A dataframe containing edge data.
+        edge_type (str): A string containing the type (:TYPE) of the edge.
+        edge_target (str): A string containing the target (:END_ID) of the edge.
+        edge_source(str|None): An optional argument, containing the source (:START_ID) of the edge.
+
+    Returns:
+        filtered_edges: The edges dataframes without the removed edge.
+    """
+    if edge_source is not None:
+        filtered_edges = edges[
+            ~(
+                (edges[":START_ID"] == edge_source)
+                & (edges[":TYPE"] == edge_type)
+                & (edges[":END_ID"] == edge_target)
+            )
+        ]
+    else:
+        filtered_edges = edges[~((edges[":TYPE"] == edge_type) & (edges[":END_ID"] == edge_target))]
+
+    return filtered_edges
+
+
 def handle_common_node_parent(common_node_id, edges1, edges2, new_parent_id):
     """
     Removes the CONTAINS edge from edges2, and updates it in edges1 to a new parent. To be used to separate common nodes.
@@ -18,17 +45,14 @@ def handle_common_node_parent(common_node_id, edges1, edges2, new_parent_id):
         edges1, edges2: Both dataframes, updated.
     """
 
-    def delete_edge_by_target(df, edge_type, edge_target):
-
-        filtered_df = df[~((df[":TYPE"] == edge_type) & (df[":END_ID"] == edge_target))]
-
-        return filtered_df
-
     edges2 = delete_edge_by_target(edges2, "CONTAINS", common_node_id)
 
     condition = (edges1[":TYPE"] == "CONTAINS") & (edges1[":END_ID"] == common_node_id)
 
-    edges1.loc[condition, [":START_ID", "id"]] = [new_parent_id, f"{new_parent_id}-contains-{common_node_id}"]
+    edges1.loc[condition, [":START_ID", "id"]] = [
+        new_parent_id,
+        f"{new_parent_id}-contains-{common_node_id}",
+    ]
 
     return edges1, edges2
 
@@ -58,10 +82,45 @@ def compare_for_same_parent(id, edges1, edges2):
         (edges2[":END_ID"] == id) & (edges2[":TYPE"] == "CONTAINS")
     ]
 
+    # Check for multiple containment edges in edges1
+    if len(containment_edge1) > 1:
+        # Identify rows where :START_ID contains 'global_namespace'
+        # Identify rows where :START_ID contains 'global_namespace'
+        global_namespace_edges = containment_edge1[
+            containment_edge1[":START_ID"].str.contains("-global-namespace", na=False)
+        ]
+        if not global_namespace_edges.empty:
+            # Delete these edges
+            for _, edge in global_namespace_edges.iterrows():
+                edges1 = delete_edge_by_target(
+                    edges1, "CONTAINS", edge[":END_ID"], edge[":START_ID"]
+                )
+    # Check for multiple containment edges in edges2
+    if len(containment_edge2) > 1:
+        # Identify rows where :START_ID contains 'global_namespace'
+        global_namespace_edges = containment_edge2[
+            containment_edge2[":START_ID"].str.contains("-global-namespace", na=False)
+        ]
+        if not global_namespace_edges.empty:
+            # Delete these edges
+            for _, edge in global_namespace_edges.iterrows():
+                edges2 = delete_edge_by_target(
+                    edges2, "CONTAINS", edge[":END_ID"], edge[":START_ID"]
+                )
+
+        # Filter rows based on criteria
+    containment_edge1 = edges1[
+        (edges1[":END_ID"] == id) & (edges1[":TYPE"] == "CONTAINS")
+    ]
+    containment_edge2 = edges2[
+        (edges2[":END_ID"] == id) & (edges2[":TYPE"] == "CONTAINS")
+    ]
+
     # Ensure at most one matching row exists in each dataframe
     if len(containment_edge1) > 1 or len(containment_edge2) > 1:
         print(containment_edge1[[":START_ID", ":END_ID"]])
         print(containment_edge2[[":START_ID", ":END_ID"]])
+
         raise ValueError(
             "Each list of edges should contain at most one CONTAINS edge matching the criteria."
         )
@@ -73,8 +132,11 @@ def compare_for_same_parent(id, edges1, edges2):
 
     # Compare `:START_ID` values or check for global_namespace_const
     same_parent = parent_node_id_1 == parent_node_id_2
-    in_global_namespace = global_namespace_const in parent_node_id_1 and global_namespace_const in parent_node_id_2
-    return  same_parent, in_global_namespace
+    in_global_namespace = (
+        global_namespace_const in parent_node_id_1
+        and global_namespace_const in parent_node_id_2
+    )
+    return same_parent, in_global_namespace, edges1, edges2
 
 
 def handle_common_application_node(nodes1, nodes2, edges1):
@@ -175,7 +237,6 @@ def handle_common_components(common_components, edges1, edges2):
     return updated_edges1, updated_edges2
 
 
-
 def handle_common_modules(common_modules, edges1, edges2):
     """
     Process `common_modules` to check for common parents and handle common nodes without explicit iteration.
@@ -193,7 +254,9 @@ def handle_common_modules(common_modules, edges1, edges2):
 
     def process_module(component_id):
         nonlocal updated_edges1, updated_edges2
-        has_same_parent, in_global_namespace = compare_for_same_parent(component_id, updated_edges1, updated_edges2)
+        has_same_parent, in_global_namespace, updated_edges1, updated_edges2 = (
+            compare_for_same_parent(component_id, updated_edges1, updated_edges2)
+        )
         if in_global_namespace and not has_same_parent:
             updated_edges1, updated_edges2 = handle_common_node_parent(
                 component_id, updated_edges1, updated_edges2, "Common-global-namespace"
@@ -203,6 +266,7 @@ def handle_common_modules(common_modules, edges1, edges2):
     common_modules["id:ID"].apply(process_module)
 
     return updated_edges1, updated_edges2
+
 
 def merge_nodes_and_edges(
     nodes1_path,

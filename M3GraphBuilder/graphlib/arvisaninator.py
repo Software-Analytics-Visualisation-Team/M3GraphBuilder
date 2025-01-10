@@ -147,7 +147,7 @@ class Arvisaninator:
                 color=self.roleStereotypeColors[
                     self.data.nodes[node].properties.get("roleStereotype", "Unknown")
                 ],
-                dep_profile_cat=self.dependencyProfiles.get(id, None),
+                dep_profile_cat=self.dependencyProfiles.get(node, None),
             )
             for node in contained_structures
         ]
@@ -161,7 +161,7 @@ class Arvisaninator:
                 color=self.roleStereotypeColors[
                     self.data.nodes[node].properties.get("roleStereotype", "Unknown")
                 ],
-                dep_profile_cat=self.dependencyProfiles.get(id, None),
+                dep_profile_cat=self.dependencyProfiles.get(node, None),
             )
             for node in orphan_structures
         ]
@@ -170,10 +170,16 @@ class Arvisaninator:
 
     def extract_sublayers(self):
 
+        # sublayers = {
+        #     edge.source
+        #     for edge in self.data.edges.get("contains", [])
+        #     if "Container" in self.data.nodes[edge.source].labels
+        # }
+
         sublayers = {
-            edge.source
-            for edge in self.data.edges.get("contains", [])
-            if "Container" in self.data.nodes[edge.source].labels
+            node
+            for node in self.data.nodes
+            if "Container" in self.data.nodes[node].labels
         }
 
         sublayers.add(f"{self.application_name}-global-namespace")
@@ -239,18 +245,26 @@ class Arvisaninator:
         parents = {
             e.source: e.target for e in invert(self.data.edges.get("contains", []))
         }
-
-        dependency_profiles = defaultdict(list)
-
+        # Collect all nodes in the graph
+        all_nodes = set(parents.keys())
         for edge in raw_edges:
-            src_id, tgt_id = edge.source, edge.target
+            all_nodes.add(edge.source)
+            all_nodes.add(edge.target)
+
+        # Initialize dependency profiles for all nodes
+        dependency_profiles = defaultdict(list, {node: [] for node in all_nodes})
+
+        # Populate 'in' and 'out' dependencies based on edges
+        for edge in raw_edges:
+            src_id = edge.source.removeprefix("mod:") if edge.source.startswith("mod:") else edge.source
+            tgt_id = edge.target.removeprefix("mod:") if edge.target.startswith("mod:") else edge.target
             if (
                 parents.get(src_id)
                 and parents.get(tgt_id)
                 and parents[src_id] != parents[tgt_id]
             ):
-                dependency_profiles[src_id].append("out")
-                dependency_profiles[tgt_id].append("in")
+                dependency_profiles[edge.source].append("out")
+                dependency_profiles[edge.target].append("in")
 
         # Count occurrences of 'in' and 'out' for each node
         dependency_counts = {
@@ -258,11 +272,17 @@ class Arvisaninator:
             for node_id, profile in dependency_profiles.items()
         }
 
+        # Ensure all nodes are represented
+        for node in all_nodes:
+            if node not in dependency_counts:
+                dependency_counts[node] = {"in": 0, "out": 0}
+
         # Classify dependency profiles based on counts
         return {
             node_id: dep_profile(profile["in"], profile["out"])
             for node_id, profile in dependency_counts.items()
         }
+
 
     def find_path_from_root(self, tree, target_node):
         # Step 1: Build a dictionary to map each node to its parent
@@ -490,6 +510,99 @@ class Arvisaninator:
                 )
 
         return raw_edges, calls, namespace_modules
+    
+    def create_specializes_edges(self):
+        """
+        Creates edges that define SPECIALIZES relationships.
+
+        Returns:
+            tuple: A tuple containing:
+                - raw_edges (list): List of edges representing calls.
+                - calls (list): List of call relationships formatted for export.
+                - namespace_modules (set): Set of namespace modules.
+        """
+
+        def create_edge_from_data(edge, edge_type):
+            """Helper function to create a new edge."""
+            source = edge.source
+            target = edge.target
+
+            source_node = self.data.nodes.get(edge.source)
+            if source_node and "Container" in source_node.labels:
+                source = f"mod:{edge.source}"
+                container_nodes.add(edge.source)
+
+            target_node = self.data.nodes.get(edge.target)
+            if target_node and "Container" in target_node.labels:
+                target = f"mod:{edge.target}"
+                container_nodes.add(edge.target)
+            return Edge(
+                source=source,
+                target=target,
+                labels=edge.labels,
+                properties=edge.properties,
+            )
+
+        # Initialize lists and sets
+        container_nodes = set()
+        raw_edges = []
+        specializations = []
+
+        # Check if 'calls' edges exist, else combine 'hasScript' and 'invokes'
+        if self.data.edges.get("specializes"):
+            print("Found SPECIALIZES edges")
+            raw_edges = self.data.edges["specializes"]
+        else:
+            print("No specializes")
+
+        for edge in raw_edges:
+            if edge.source != edge.target:
+                # Check if source or target starts with "mod:"
+                # if edge.source.startswith("mod:"):
+                #     node_id = edge.source.removeprefix("mod:")
+                #     namespace_modules.add(
+                #         create_node(
+                #             node_id=edge.source,
+                #             label="Module",
+                #             full_name=edge.source,
+                #             simple_name=self.data.nodes[node_id].properties[
+                #                 "simpleName"
+                #             ],
+                #             color=self.roleStereotypeColors.get(node_id, "Unknown"),
+                #             dep_profile_cat=self.dependencyProfiles.get(node_id, None),
+                #         )
+                #     )
+                # if edge.target.startswith("mod:"):
+                #     node_id = edge.target.removeprefix("mod:")
+                #     namespace_modules.add(
+                #         create_node(
+                #             node_id=edge.target,
+                #             label="Module",
+                #             full_name=edge.target,
+                #             simple_name=self.data.nodes[node_id].properties[
+                #                 "simpleName"
+                #             ],
+                #             color=self.roleStereotypeColors.get(node_id, "Unknown"),
+                #             dep_profile_cat=self.dependencyProfiles.get(node_id, None),
+                #         )
+                #     )
+
+                # Add the call to the list
+                specializations.append(
+                    (
+                        f"{edge.source}-specializes-{edge.target}",
+                        "SPECIALIZES",
+                        edge.source,
+                        edge.target,
+                        '{}',
+                        "",
+                        edge.properties.get("weight", 0),
+                        None,
+                    )
+                )
+
+        return specializations
+
 
     def export(self):
         """
@@ -499,9 +612,9 @@ class Arvisaninator:
         def generate_nodes_and_edges():
 
             raw_edges, calls_edges, namespace_modules = self.create_calls_edges()
-
+            specializes_edges = self.create_specializes_edges()
             self.dependencyProfiles = self.compute_dependency_profiles(raw_edges)
-
+            print(self.dependencyProfiles)
             sublayers = self.extract_sublayers()
             components, sublayer_to_component = self.extract_components(sublayers)
             contained_structures, orphan_structures = self.extract_structures()
@@ -527,7 +640,7 @@ class Arvisaninator:
                 namespace_modules,
             )
 
-            edges = contains_edges + calls_edges
+            edges = contains_edges + calls_edges + specializes_edges
 
             return nodes, edges
 
