@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  graphbuilder:
+    image: m3gb-app
+    volumes:
+      - ./logs:/app/logs
+      - ./input:/app/input
+      - ./output:/app/output
+    entrypoint: ["python", "-m", "M3GraphBuilder"]
