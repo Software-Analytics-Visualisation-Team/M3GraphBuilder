@@ -59,9 +59,14 @@ def load_config_from_ini_file():
     output_path = os.path.join(app_root_parent, config.get("output", "path"))
     log_path = os.path.join(app_root_parent, config.get("logging", "path"))
 
-    config_dict["project"] = config.items("project")
+    config_dict["project"] = {
+        "name": config.get("project", "name"),
+        "desc": config.get("project", "desc")
+    }
     config_dict["output"] ={ "path": output_path } 
-    config_dict["logging"] = { "path": log_path, "verbose": config.get("logging", "verbose") }
+    config_dict["logging"] = { 
+        "path": log_path, 
+        "verbose": config.get("logging", "verbose") }
 
 
     return config_dict
